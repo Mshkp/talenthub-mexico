@@ -1,14 +1,44 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí irá la lógica de login con la API
-    console.log('Login:', { email, password });
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await api.post('/auth/login/', {
+        username: formData.username,
+        password: formData.password
+      });
+
+      // Guardar tokens
+      localStorage.setItem('access_token', response.data.access);
+      localStorage.setItem('refresh_token', response.data.refresh);
+      
+      alert('¡Inicio de sesión exitoso!');
+      navigate('/vacantes');
+    } catch (err: any) {
+      setError('Usuario o contraseña incorrectos');
+      setLoading(false);
+    }
   };
 
   return (
@@ -19,17 +49,24 @@ const Login: React.FC = () => {
           <p className="text-gray-600">Inicia sesión en tu cuenta</p>
         </div>
 
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Email
+              Usuario
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              placeholder="tu@email.com"
+              placeholder="tu_usuario"
               required
             />
           </div>
@@ -40,8 +77,9 @@ const Login: React.FC = () => {
             </label>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
               placeholder="••••••••"
               required
@@ -50,9 +88,10 @@ const Login: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            disabled={loading}
+            className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
           >
-            Iniciar Sesión
+            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
         </form>
 

@@ -53,21 +53,40 @@ const Vacantes: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
-      <nav className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-talenthub-blue">
-            TalentHub México
+      {/* Navbar */}
+<nav className="bg-white shadow-md">
+  <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+    <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+      TalentHub México
+    </Link>
+    <div className="space-x-4">
+      {localStorage.getItem('access_token') ? (
+        <>
+          <span className="text-talenthub-gray font-semibold">Bienvenido</span>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              window.location.href = '/';
+            }}
+            className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
+          >
+            Cerrar Sesión
+          </button>
+        </>
+      ) : (
+        <>
+          <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+            Iniciar Sesión
           </Link>
-          <div className="space-x-4">
-            <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Iniciar Sesión
-            </Link>
-            <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-              Registrarse
-            </Link>
-          </div>
-        </div>
-      </nav>
+          <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+            Registrarse
+          </Link>
+        </>
+      )}
+    </div>
+  </div>
+</nav>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
