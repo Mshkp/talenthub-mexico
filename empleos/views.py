@@ -37,3 +37,23 @@ class AplicacionViewSet(viewsets.ModelViewSet):
         else:
             # Los aspirantes ven solo sus aplicaciones
             return Aplicacion.objects.filter(usuario=self.request.user)
+        
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from django.contrib.auth.hashers import make_password
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register(request):
+    try:
+        usuario = Usuario.objects.create(
+            username=request.data['username'],
+            email=request.data['email'],
+            password=make_password(request.data['password']),
+            tipo=request.data['tipo'],
+            telefono=request.data.get('telefono', '')
+        )
+        return Response({'message': 'Usuario creado exitosamente'}, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
