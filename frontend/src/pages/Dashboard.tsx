@@ -163,40 +163,24 @@ const Dashboard: React.FC = () => {
       TalentHub México
     </Link>
     <div className="flex items-center gap-4">
-      {localStorage.getItem('access_token') ? (
-        <>
-          {localStorage.getItem('user_tipo') === 'aspirante' ? (
-            <Link to="/mis-aplicaciones" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Mis Aplicaciones
-            </Link>
-          ) : (
-            <Link to="/dashboard" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Dashboard
-            </Link>
-          )}
-          <span className="text-talenthub-gray font-semibold">
-            Hola, {localStorage.getItem('user_username')}
-          </span>
-          <button 
-            onClick={() => {
-              localStorage.clear();
-              navigate('/');
-            }}
-            className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
-          >
-            Cerrar Sesión
-          </button>
-        </>
-      ) : (
-        <>
-          <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-            Iniciar Sesión
-          </Link>
-          <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-            Registrarse
-          </Link>
-        </>
-      )}
+      <Link to="/vacantes" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+        Ver Vacantes
+      </Link>
+      <Link to="/aplicaciones-empresa" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+        Aplicaciones
+      </Link>
+      <span className="text-talenthub-gray font-semibold">
+        Hola, {localStorage.getItem('user_username')}
+      </span>
+      <button 
+        onClick={() => {
+          localStorage.clear();
+          navigate('/');
+        }}
+        className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
+      >
+        Cerrar Sesión
+      </button>
     </div>
   </div>
 </nav>
