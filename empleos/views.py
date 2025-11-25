@@ -47,6 +47,7 @@ from django.contrib.auth.hashers import make_password
 @permission_classes([AllowAny])
 def register(request):
     try:
+        # Crear usuario
         usuario = Usuario.objects.create(
             username=request.data['username'],
             email=request.data['email'],
@@ -54,7 +55,22 @@ def register(request):
             tipo=request.data['tipo'],
             telefono=request.data.get('telefono', '')
         )
-        return Response({'message': 'Usuario creado exitosamente'}, status=status.HTTP_201_CREATED)
+        
+        # Si es empresa, crear registro en tabla Empresa
+        if request.data['tipo'] == 'empresa':
+            Empresa.objects.create(
+                usuario=usuario,
+                nombre_empresa=request.data.get('nombre_empresa', request.data['username']),
+                sector='Tecnología',  # Default
+                descripcion='Empresa registrada en TalentHub México',
+                ubicacion='México',
+                sitio_web='',
+            )
+        
+        return Response({
+            'message': 'Usuario creado exitosamente',
+            'tipo': usuario.tipo
+        }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -64,9 +80,16 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 # Actualiza la clase VacanteViewSet:
 class VacanteViewSet(viewsets.ModelViewSet):
-    queryset = Vacante.objects.filter(activa=True)
+    queryset = Vacante.objects.all()  # Agregar esta línea de vuelta
     serializer_class = VacanteSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]  # Permite crear si está autenticado
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        queryset = Vacante.objects.filter(activa=True)
+        empresa_id = self.request.query_params.get('empresa', None)
+        if empresa_id:
+            queryset = queryset.filter(empresa_id=empresa_id)
+        return queryset
     
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):

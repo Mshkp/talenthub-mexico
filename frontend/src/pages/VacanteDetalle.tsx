@@ -208,22 +208,46 @@ const handleAplicar = async () => {
             </div>
           </div>
 
-          {/* Botón Aplicar */}
-          <div className="border-t pt-6">
-            <button
-              onClick={handleAplicar}
-              className="w-full bg-talenthub-blue text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700 transition shadow-lg"
-            >
-              Aplicar a esta vacante
-            </button>
-            <p className="text-center text-sm text-gray-500 mt-3">
-              Al aplicar, tu perfil será enviado directamente a {vacante.empresa_nombre}
-            </p>
-          </div>
+          {/* Botón Aplicar - Solo para aspirantes */}
+<div className="border-t pt-6">
+  {localStorage.getItem('user_tipo') === 'aspirante' ? (
+    <>
+      <button
+        onClick={handleAplicar}
+        className="w-full bg-talenthub-blue text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700 transition shadow-lg"
+      >
+        Aplicar a esta vacante
+      </button>
+      <p className="text-center text-sm text-gray-500 mt-3">
+        Al aplicar, tu perfil será enviado directamente a {vacante.empresa_nombre}
+      </p>
+    </>
+  ) : localStorage.getItem('user_tipo') === 'empresa' ? (
+    <div className="bg-blue-50 border-l-4 border-talenthub-blue p-6 rounded">
+      <p className="text-talenthub-gray font-semibold">
+        📋 Esta es una de las vacantes publicadas en la plataforma
+      </p>
+      <p className="text-gray-600 text-sm mt-2">
+        Como empresa, puedes gestionar tus vacantes desde el <Link to="/dashboard" className="text-talenthub-blue hover:underline">Dashboard</Link>
+      </p>
+    </div>
+  ) : (
+    <div className="text-center">
+      <p className="text-gray-600 mb-4">Para aplicar a esta vacante, necesitas iniciar sesión</p>
+      <Link 
+        to="/login"
+        className="inline-block bg-talenthub-blue text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+      >
+        Iniciar Sesión
+      </Link>
+    </div>
+  )}
+</div>
         </div>
       </div>
     </div>
   );
 };
+
 
 export default VacanteDetalle;

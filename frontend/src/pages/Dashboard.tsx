@@ -28,40 +28,52 @@ const Dashboard: React.FC = () => {
     salario_max: '',
     modalidad: 'remoto',
     ubicacion: '',
-    requisitos: '',
+    tecnologias: '',
+    experiencia: '',
+    otros_requisitos: '',
     activa: true
   });
 
   useEffect(() => {
-  const token = localStorage.getItem('access_token');
-  const userTipo = localStorage.getItem('user_tipo');
-  
-  if (!token) {
-    alert('Debes iniciar sesión');
-    navigate('/login');
-    return;
-  }
-  
-  if (userTipo !== 'empresa') {
-    alert('Solo las empresas pueden acceder al dashboard');
-    navigate('/vacantes');
-    return;
-  }
-  
-  fetchVacantes();
-}, [navigate]);
+    const token = localStorage.getItem('access_token');
+    const userTipo = localStorage.getItem('user_tipo');
+    
+    if (!token) {
+      alert('Debes iniciar sesión');
+      navigate('/login');
+      return;
+    }
+    
+    if (userTipo !== 'empresa') {
+      alert('Solo las empresas pueden acceder al dashboard');
+      navigate('/vacantes');
+      return;
+    }
+    
+    fetchVacantes();
+  }, [navigate]);
 
   const fetchVacantes = async () => {
-    try {
-      const response = await api.get('/vacantes/');
-      // Aquí filtrarías por empresa, pero por ahora mostramos todas
+  try {
+    // Obtener el ID de la empresa del usuario actual
+    const userResponse = await api.get('/auth/me/');
+    const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
+    const empresaId = empresaResponse.data[0]?.id;
+
+    if (empresaId) {
+      // Filtrar solo las vacantes de esta empresa
+      const response = await api.get(`/vacantes/?empresa=${empresaId}`);
       setVacantes(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error:', error);
-      setLoading(false);
+    } else {
+      setVacantes([]);
     }
-  };
+    
+    setLoading(false);
+  } catch (error) {
+    console.error('Error:', error);
+    setLoading(false);
+  }
+};
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -73,40 +85,56 @@ const Dashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      // Parsear requisitos como JSON
-      let requisitosObj;
       try {
-        requisitosObj = JSON.parse(formData.requisitos);
-      } catch {
-        requisitosObj = { descripcion: formData.requisitos };
-      }
+        // Obtener el ID de la empresa del usuario actual
+        const userResponse = await api.get('/auth/me/');
+        const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
+        const empresaId = empresaResponse.data[0]?.id || 1;
 
-      const dataToSend = {
-        ...formData,
-        requisitos: requisitosObj,
-        empresa: 1 // Esto debería ser dinámico según el usuario logueado
-      };
+        // Convertir los campos a JSON
+        const tecnologiasArray = formData.tecnologias.split(',').map(t => t.trim()).filter(t => t);
+        
+        const requisitosObj = {
+          lenguajes: tecnologiasArray,
+          experiencia: formData.experiencia,
+          otros: formData.otros_requisitos
+        };
 
-      if (editando) {
-        await api.put(`/vacantes/${editando}/`, dataToSend);
-        alert('Vacante actualizada exitosamente');
-      } else {
-        await api.post('/vacantes/', dataToSend);
-        alert('Vacante creada exitosamente');
-      }
+        const dataToSend = {
+          titulo: formData.titulo,
+          descripcion: formData.descripcion,
+          salario_min: formData.salario_min,
+          salario_max: formData.salario_max,
+          modalidad: formData.modalidad,
+          ubicacion: formData.ubicacion,
+          requisitos: requisitosObj,
+          activa: formData.activa,
+          empresa: empresaId
+        };
+
+        if (editando) {
+          await api.put(`/vacantes/${editando}/`, dataToSend);
+          alert('Vacante actualizada exitosamente');
+        } else {
+          await api.post('/vacantes/', dataToSend);
+          alert('Vacante creada exitosamente');
+        }
 
       setShowForm(false);
       setEditando(null);
       limpiarForm();
       fetchVacantes();
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error:', error);
       alert('Error al guardar: ' + (error.response?.data?.detail || 'Intenta de nuevo'));
-    }
+      }
   };
 
   const handleEdit = (vacante: Vacante) => {
+    const tecnologias = vacante.requisitos?.lenguajes ? vacante.requisitos.lenguajes.join(', ') : '';
+    const experiencia = vacante.requisitos?.experiencia || '';
+    const otros = vacante.requisitos?.otros || '';
+    
     setFormData({
       titulo: vacante.titulo,
       descripcion: vacante.descripcion,
@@ -114,7 +142,9 @@ const Dashboard: React.FC = () => {
       salario_max: vacante.salario_max,
       modalidad: vacante.modalidad,
       ubicacion: vacante.ubicacion,
-      requisitos: JSON.stringify(vacante.requisitos, null, 2),
+      tecnologias: tecnologias,
+      experiencia: experiencia,
+      otros_requisitos: otros,
       activa: vacante.activa
     });
     setEditando(vacante.id);
@@ -141,7 +171,9 @@ const Dashboard: React.FC = () => {
       salario_max: '',
       modalidad: 'remoto',
       ubicacion: '',
-      requisitos: '',
+      tecnologias: '',
+      experiencia: '',
+      otros_requisitos: '',
       activa: true
     });
   };
@@ -157,33 +189,33 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
-<nav className="bg-white shadow-md">
-  <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-    <Link to="/" className="text-2xl font-bold text-talenthub-blue">
-      TalentHub México
-    </Link>
-    <div className="flex items-center gap-4">
-      <Link to="/vacantes" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-        Ver Vacantes
-      </Link>
-      <Link to="/aplicaciones-empresa" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-        Aplicaciones
-      </Link>
-      <span className="text-talenthub-gray font-semibold">
-        Hola, {localStorage.getItem('user_username')}
-      </span>
-      <button 
-        onClick={() => {
-          localStorage.clear();
-          navigate('/');
-        }}
-        className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
-      >
-        Cerrar Sesión
-      </button>
-    </div>
-  </div>
-</nav>
+      <nav className="bg-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+            TalentHub México
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/vacantes" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+              Ver Vacantes
+            </Link>
+            <Link to="/aplicaciones-empresa" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+              Aplicaciones
+            </Link>
+            <span className="text-talenthub-gray font-semibold">
+              Hola, {localStorage.getItem('user_username')}
+            </span>
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                navigate('/');
+              }}
+              className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      </nav>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -310,18 +342,47 @@ const Dashboard: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Requisitos (JSON) *
+                  Tecnologías requeridas *
                 </label>
-                <textarea
-                  name="requisitos"
-                  value={formData.requisitos}
+                <input
+                  type="text"
+                  name="tecnologias"
+                  value={formData.tecnologias}
                   onChange={handleChange}
-                  rows={3}
-                  placeholder='{"lenguajes": ["React", "Node.js"], "experiencia": "3+ años"}'
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none font-mono text-sm"
+                  placeholder="React, Node.js, Python, PostgreSQL"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">Formato JSON</p>
+                <p className="text-xs text-gray-500 mt-1">Separa las tecnologías con comas</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Experiencia requerida *
+                </label>
+                <input
+                  type="text"
+                  name="experiencia"
+                  value={formData.experiencia}
+                  onChange={handleChange}
+                  placeholder="2-3 años de experiencia"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Otros requisitos (opcional)
+                </label>
+                <textarea
+                  name="otros_requisitos"
+                  value={formData.otros_requisitos}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="Inglés intermedio, disponibilidad para viajar, etc."
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
+                />
               </div>
 
               <button

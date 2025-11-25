@@ -10,7 +10,8 @@ const Register: React.FC = () => {
     password: '',
     password2: '',
     tipo: 'aspirante',
-    telefono: ''
+    telefono: '',
+    nombre_empresa: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,8 @@ const Register: React.FC = () => {
         email: formData.email,
         password: formData.password,
         tipo: formData.tipo,
-        telefono: formData.telefono
+        telefono: formData.telefono,
+        nombre_empresa: formData.nombre_empresa
       });
       alert('¡Registro exitoso! Ahora puedes iniciar sesión');
       navigate('/login');
@@ -78,6 +80,23 @@ const Register: React.FC = () => {
               <option value="empresa">Empresa (Publico vacantes)</option>
             </select>
           </div>
+
+          {formData.tipo === 'empresa' && (
+            <div>
+              <label className="block text-sm font-semibold text-talenthub-gray mb-1">
+                Nombre de la empresa *
+              </label>
+              <input
+                type="text"
+                name="nombre_empresa"
+                value={formData.nombre_empresa}
+                onChange={handleChange}
+                placeholder="Tech Corp México"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
+                required={formData.tipo === 'empresa'}
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-talenthub-gray mb-1">

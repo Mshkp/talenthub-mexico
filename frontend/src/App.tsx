@@ -7,6 +7,7 @@ import Vacantes from './pages/Vacantes';
 import VacanteDetalle from './pages/VacanteDetalle';
 import Dashboard from './pages/Dashboard';
 import MisAplicaciones from './pages/MisAplicaciones';
+import AplicacionesEmpresa from './pages/AplicacionesEmpresa';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/vacantes/:id" element={<VacanteDetalle />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/mis-aplicaciones" element={<MisAplicaciones />} />
+        <Route path="/aplicaciones-empresa" element={<AplicacionesEmpresa />} />
       </Routes>
     </Router>
   );
