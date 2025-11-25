@@ -16,13 +16,20 @@ interface Vacante {
 
 const Vacantes: React.FC = () => {
   const [vacantes, setVacantes] = useState<Vacante[]>([]);
+  const [vacantesFiltradas, setVacantesFiltradas] = useState<Vacante[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [modalidadFiltro, setModalidadFiltro] = useState('');
+  const [salarioMin, setSalarioMin] = useState('');
 
   useEffect(() => {
     const fetchVacantes = async () => {
       try {
         const response = await api.get('/vacantes/');
         setVacantes(response.data);
+        setVacantesFiltradas(response.data);
         setLoading(false);
       } catch (error) {
         console.error('Error al cargar vacantes:', error);
@@ -32,6 +39,37 @@ const Vacantes: React.FC = () => {
 
     fetchVacantes();
   }, []);
+
+  // Aplicar filtros
+  useEffect(() => {
+    let resultado = [...vacantes];
+
+    // Filtro por texto
+    if (searchTerm) {
+      resultado = resultado.filter(v => 
+        v.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        v.empresa_nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtro por modalidad
+    if (modalidadFiltro) {
+      resultado = resultado.filter(v => v.modalidad === modalidadFiltro);
+    }
+
+    // Filtro por salario mínimo
+    if (salarioMin) {
+      resultado = resultado.filter(v => parseFloat(v.salario_max) >= parseFloat(salarioMin));
+    }
+
+    setVacantesFiltradas(resultado);
+  }, [searchTerm, modalidadFiltro, salarioMin, vacantes]);
+
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setModalidadFiltro('');
+    setSalarioMin('');
+  };
 
   const getModalidadColor = (modalidad: string) => {
     switch (modalidad) {
@@ -53,40 +91,39 @@ const Vacantes: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
-      {/* Navbar */}
-<nav className="bg-white shadow-md">
-  <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-    <Link to="/" className="text-2xl font-bold text-talenthub-blue">
-      TalentHub México
-    </Link>
-    <div className="space-x-4">
-      {localStorage.getItem('access_token') ? (
-        <>
-          <span className="text-talenthub-gray font-semibold">Bienvenido</span>
-          <button 
-            onClick={() => {
-              localStorage.removeItem('access_token');
-              localStorage.removeItem('refresh_token');
-              window.location.href = '/';
-            }}
-            className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
-          >
-            Cerrar Sesión
-          </button>
-        </>
-      ) : (
-        <>
-          <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-            Iniciar Sesión
+      <nav className="bg-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+            TalentHub México
           </Link>
-          <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-            Registrarse
-          </Link>
-        </>
-      )}
-    </div>
-  </div>
-</nav>
+          <div className="space-x-4">
+            {localStorage.getItem('access_token') ? (
+              <>
+                <span className="text-talenthub-gray font-semibold">Bienvenido</span>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    window.location.href = '/';
+                  }}
+                  className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
+                >
+                  Cerrar Sesión
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+                  Iniciar Sesión
+                </Link>
+                <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+                  Registrarse
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -95,13 +132,75 @@ const Vacantes: React.FC = () => {
             Vacantes Disponibles
           </h1>
           <p className="text-gray-600">
-            {vacantes.length} oportunidades encontradas
+            {vacantesFiltradas.length} de {vacantes.length} oportunidades
           </p>
+        </div>
+
+        {/* Filtros */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-lg font-bold text-talenthub-gray mb-4">🔍 Filtros de Búsqueda</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Búsqueda por texto */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Buscar
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Título o empresa..."
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
+              />
+            </div>
+
+            {/* Filtro modalidad */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Modalidad
+              </label>
+              <select
+                value={modalidadFiltro}
+                onChange={(e) => setModalidadFiltro(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
+              >
+                <option value="">Todas</option>
+                <option value="remoto">Remoto</option>
+                <option value="presencial">Presencial</option>
+                <option value="hibrido">Híbrido</option>
+              </select>
+            </div>
+
+            {/* Filtro salario */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Salario mínimo
+              </label>
+              <input
+                type="number"
+                value={salarioMin}
+                onChange={(e) => setSalarioMin(e.target.value)}
+                placeholder="30000"
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
+              />
+            </div>
+
+            {/* Botón limpiar */}
+            <div className="flex items-end">
+              <button
+                onClick={limpiarFiltros}
+                className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Vacantes List */}
         <div className="space-y-4">
-          {vacantes.map((vacante) => (
+          {vacantesFiltradas.map((vacante) => (
             <div
               key={vacante.id}
               className="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-talenthub-blue hover:shadow-lg transition cursor-pointer"
@@ -129,17 +228,26 @@ const Vacantes: React.FC = () => {
                   </span>
                   <p className="text-sm text-gray-500">{vacante.ubicacion}</p>
                 </div>
-                <button className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+                <Link 
+                  to={`/vacantes/${vacante.id}`}
+                  className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
                   Ver detalles
-                </button>
+                </Link>
               </div>
             </div>
           ))}
         </div>
 
-        {vacantes.length === 0 && (
+        {vacantesFiltradas.length === 0 && (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-xl text-gray-600">No hay vacantes disponibles en este momento</p>
+            <p className="text-xl text-gray-600">No se encontraron vacantes con esos filtros</p>
+            <button 
+              onClick={limpiarFiltros}
+              className="mt-4 text-talenthub-blue font-semibold hover:underline"
+            >
+              Limpiar filtros
+            </button>
           </div>
         )}
       </div>
