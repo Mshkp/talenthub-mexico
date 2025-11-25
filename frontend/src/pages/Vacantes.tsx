@@ -91,40 +91,49 @@ const Vacantes: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
+<nav className="bg-white shadow-md">
+  <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+    <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+      TalentHub México
+    </Link>
+    <div className="flex items-center gap-4">
       {localStorage.getItem('access_token') ? (
-  <>
-    {localStorage.getItem('user_tipo') === 'aspirante' ? (
-      <Link to="/mis-aplicaciones" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-        Mis Aplicaciones
-      </Link>
-    ) : (
-      <Link to="/dashboard" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-        Dashboard
-      </Link>
-    )}
-    <span className="text-talenthub-gray font-semibold">
-      Hola, {localStorage.getItem('user_username')}
-    </span>
-    <button 
-      onClick={() => {
-        localStorage.clear();
-        window.location.href = '/';
-      }}
-      className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
-    >
-      Cerrar Sesión
-    </button>
-  </>
-) : (
-  <>
-    <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-      Iniciar Sesión
-    </Link>
-    <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-      Registrarse
-    </Link>
-  </>
-)}
+        <>
+          {localStorage.getItem('user_tipo') === 'aspirante' ? (
+            <Link to="/mis-aplicaciones" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+              Mis Aplicaciones
+            </Link>
+          ) : (
+            <Link to="/dashboard" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+              Dashboard
+            </Link>
+          )}
+          <span className="text-talenthub-gray font-semibold">
+            Hola, {localStorage.getItem('user_username')}
+          </span>
+          <button 
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/';
+            }}
+            className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
+          >
+            Cerrar Sesión
+          </button>
+        </>
+      ) : (
+        <>
+          <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+            Iniciar Sesión
+          </Link>
+          <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+            Registrarse
+          </Link>
+        </>
+      )}
+    </div>
+  </div>
+</nav>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
