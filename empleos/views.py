@@ -57,3 +57,37 @@ def register(request):
         return Response({'message': 'Usuario creado exitosamente'}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
+# Actualiza la clase VacanteViewSet:
+class VacanteViewSet(viewsets.ModelViewSet):
+    queryset = Vacante.objects.filter(activa=True)
+    serializer_class = VacanteSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]  # Permite crear si está autenticado
+    
+    @action(detail=False, methods=['get'])
+    def estadisticas(self, request):
+        stats = {
+            'total_vacantes': Vacante.objects.filter(activa=True).count(),
+            'salario_promedio': Vacante.objects.aggregate(Avg('salario_min'))['salario_min__avg'],
+            'por_modalidad': Vacante.objects.values('modalidad').annotate(count=Count('id'))
+        }
+        return Response(stats)
+    
+
+from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_info(request):
+    user = request.user
+    return Response({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'tipo': user.tipo,
+    })

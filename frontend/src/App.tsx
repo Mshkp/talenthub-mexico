@@ -5,6 +5,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Vacantes from './pages/Vacantes';
 import VacanteDetalle from './pages/VacanteDetalle';
+import Dashboard from './pages/Dashboard';
+import MisAplicaciones from './pages/MisAplicaciones';
 
 function App() {
   return (
@@ -15,6 +17,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/vacantes" element={<Vacantes />} />
         <Route path="/vacantes/:id" element={<VacanteDetalle />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/mis-aplicaciones" element={<MisAplicaciones />} />
       </Routes>
     </Router>
   );

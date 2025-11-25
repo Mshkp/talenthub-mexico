@@ -33,8 +33,19 @@ const Login: React.FC = () => {
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
       
+      // Obtener info del usuario
+      const userResponse = await api.get('/auth/me/');
+      localStorage.setItem('user_tipo', userResponse.data.tipo);
+      localStorage.setItem('user_username', userResponse.data.username);
+      
       alert('¡Inicio de sesión exitoso!');
-      navigate('/vacantes');
+      
+      // Redirigir según tipo de usuario
+      if (userResponse.data.tipo === 'empresa') {
+        navigate('/dashboard');
+      } else {
+        navigate('/vacantes');
+      }
     } catch (err: any) {
       setError('Usuario o contraseña incorrectos');
       setLoading(false);
