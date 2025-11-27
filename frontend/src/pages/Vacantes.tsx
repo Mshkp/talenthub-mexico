@@ -93,7 +93,7 @@ const Vacantes: React.FC = () => {
       {/* Navbar */}
 <nav className="bg-white shadow-md">
   <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-    <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+    <Link to="/dashboard" className="text-2xl font-bold text-talenthub-blue">
       TalentHub México
     </Link>
     <div className="flex items-center gap-4">
@@ -104,10 +104,18 @@ const Vacantes: React.FC = () => {
               Mis Aplicaciones
             </Link>
           ) : (
-            <Link to="/dashboard" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Dashboard
-            </Link>
+            <>
+              <Link to="/dashboard" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+                Dashboard
+              </Link>
+              <Link to="/aplicaciones-empresa" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+                Aplicaciones
+              </Link>
+            </>
           )}
+          <Link to="/perfil" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
+            Mi Perfil
+          </Link>
           <span className="text-talenthub-gray font-semibold">
             Hola, {localStorage.getItem('user_username')}
           </span>

@@ -8,6 +8,7 @@ import VacanteDetalle from './pages/VacanteDetalle';
 import Dashboard from './pages/Dashboard';
 import MisAplicaciones from './pages/MisAplicaciones';
 import AplicacionesEmpresa from './pages/AplicacionesEmpresa';
+import Perfil from './pages/Perfil';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/mis-aplicaciones" element={<MisAplicaciones />} />
         <Route path="/aplicaciones-empresa" element={<AplicacionesEmpresa />} />
+        <Route path="/perfil" element={<Perfil />} />
       </Routes>
     </Router>
   );

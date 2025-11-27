@@ -24,6 +24,13 @@ class EmpresaViewSet(viewsets.ModelViewSet):
     queryset = Empresa.objects.all()
     serializer_class = EmpresaSerializer
     permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        queryset = Empresa.objects.all()
+        usuario_id = self.request.query_params.get('usuario', None)
+        if usuario_id:
+            queryset = queryset.filter(usuario_id=usuario_id)
+        return queryset
 
 class AplicacionViewSet(viewsets.ModelViewSet):
     queryset = Aplicacion.objects.all()

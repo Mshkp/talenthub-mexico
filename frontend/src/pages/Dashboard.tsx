@@ -191,7 +191,7 @@ const Dashboard: React.FC = () => {
       {/* Navbar */}
       <nav className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+          <Link to="/dashboard" className="text-2xl font-bold text-talenthub-blue">
             TalentHub México
           </Link>
           <div className="flex items-center gap-4">
