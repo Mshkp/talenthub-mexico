@@ -9,10 +9,13 @@ import Dashboard from './pages/Dashboard';
 import MisAplicaciones from './pages/MisAplicaciones';
 import AplicacionesEmpresa from './pages/AplicacionesEmpresa';
 import Perfil from './pages/Perfil';
+import Planes from "./pages/planes";
+
 
 function App() {
   return (
     <Router>
+      
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -23,6 +26,7 @@ function App() {
         <Route path="/mis-aplicaciones" element={<MisAplicaciones />} />
         <Route path="/aplicaciones-empresa" element={<AplicacionesEmpresa />} />
         <Route path="/perfil" element={<Perfil />} />
+        <Route path="/planes" element={<Planes />} />
       </Routes>
     </Router>
   );

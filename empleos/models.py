@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 class Usuario(AbstractUser):
     TIPO_USUARIO = (
@@ -65,6 +66,7 @@ class Aplicacion(models.Model):
     vacante = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='aplicaciones')
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='aplicaciones')
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_aplicacion = models.DateTimeField(auto_now_add=True)
     cv_url = models.URLField(blank=True, null=True)
     carta_presentacion = models.TextField(blank=True)
@@ -76,3 +78,50 @@ class Aplicacion(models.Model):
     
     def __str__(self):
         return f"{self.usuario.username} - {self.vacante.titulo}"
+
+
+class Plan(models.Model):
+
+    TIPO_USUARIO = (
+        ('aspirante', 'Aspirante'),
+        ('empresa', 'Empresa'),
+    )
+
+    nombre = models.CharField(max_length=50)
+    tipo_usuario = models.CharField(max_length=20, choices=TIPO_USUARIO)
+
+    precio = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
+    max_postulaciones_dia = models.IntegerField(null=True, blank=True)
+    max_candidatos = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo_usuario})"
+
+
+class Suscripcion(models.Model):
+
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE)
+
+    fecha_inicio = models.DateTimeField(default=timezone.now)
+    fecha_fin = models.DateTimeField(null=True, blank=True)
+
+    activa = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.plan.nombre}"
+
+
+class Notificacion(models.Model):
+
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+
+    mensaje = models.TextField()
+
+    leido = models.BooleanField(default=False)
+
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notificación para {self.usuario.username}"

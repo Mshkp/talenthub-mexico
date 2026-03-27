@@ -35,23 +35,24 @@ const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const userTipo = localStorage.getItem('user_tipo');
-    
-    if (!token) {
-      alert('Debes iniciar sesión');
-      navigate('/login');
+
+    const userTipo = localStorage.getItem("user_tipo");
+
+    if (!localStorage.getItem("token")) {
+      alert("Debes iniciar sesión");
+      navigate("/login");
       return;
     }
-    
-    if (userTipo !== 'empresa') {
-      alert('Solo las empresas pueden acceder al dashboard');
-      navigate('/vacantes');
+
+    if (userTipo !== "empresa") {
+      alert("Solo las empresas pueden acceder al dashboard");
+      navigate("/vacantes");
       return;
     }
-    
+
     fetchVacantes();
-  }, [navigate]);
+
+  }, []);
 
   const fetchVacantes = async () => {
   try {

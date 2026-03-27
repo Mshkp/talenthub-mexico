@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Usuario, Empresa, Vacante, Aplicacion
+from .models import Plan, Suscripcion, Notificacion
 
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
@@ -24,3 +25,8 @@ class AplicacionAdmin(admin.ModelAdmin):
     list_display = ['usuario', 'vacante', 'estado', 'fecha_aplicacion']
     list_filter = ['estado', 'fecha_aplicacion']
     search_fields = ['usuario__username', 'vacante__titulo']
+
+admin.site.register(Plan)
+admin.site.register(Suscripcion)
+admin.site.register(Notificacion)
+
