@@ -54,14 +54,16 @@ const Dashboard: React.FC = () => {
 
   const fetchVacantes = async () => {
     try {
-      const userResponse = await api.get('/auth/me/');
-      const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
-      const empresaId = empresaResponse.data[0]?.id;
+      const userId = localStorage.getItem('user_id');
+      const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
 
-      if (empresaId) {
+      // Verificamos si realmente tienes una empresa ligada
+      if (empresaResponse.data && empresaResponse.data.length > 0) {
+        const empresaId = empresaResponse.data[0].id;
         const response = await api.get(`/vacantes/?empresa=${empresaId}`);
         setVacantes(response.data);
       } else {
+        console.warn("Este usuario no tiene un perfil en la tabla Empresa");
         setVacantes([]);
       }
       
@@ -83,9 +85,16 @@ const Dashboard: React.FC = () => {
     e.preventDefault();
     
     try {
-      const userResponse = await api.get('/auth/me/');
-      const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
-      const empresaId = empresaResponse.data[0]?.id || 1;
+      const userId = localStorage.getItem('user_id');
+      const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
+      
+      // Si no tienes empresa, detenemos todo y te avisamos
+      if (!empresaResponse.data || empresaResponse.data.length === 0) {
+        alert("⚠️ Error: Tu usuario no tiene un perfil de Empresa. Por favor, crea una CUENTA NUEVA desde la página de Registro para que se genere correctamente.");
+        return;
+      }
+
+      const empresaId = empresaResponse.data[0].id;
 
       const tecnologiasArray = formData.tecnologias.split(',').map(t => t.trim()).filter(t => t);
       
@@ -103,7 +112,7 @@ const Dashboard: React.FC = () => {
         modalidad: formData.modalidad,
         ubicacion: formData.ubicacion,
         requisitos: requisitosObj,
-        activa: formData.activa,
+        activa: editando ? formData.activa : false, 
         empresa: empresaId
       };
 
@@ -112,7 +121,7 @@ const Dashboard: React.FC = () => {
         alert('Vacante actualizada exitosamente');
       } else {
         await api.post('/vacantes/', dataToSend);
-        alert('Vacante creada exitosamente');
+        alert('Vacante creada. Está pendiente de validación.');
       }
 
       setShowForm(false);
@@ -124,6 +133,7 @@ const Dashboard: React.FC = () => {
       alert('Error al guardar: ' + (error.response?.data?.detail || 'Intenta de nuevo'));
     }
   };
+
 
   const handleEdit = (vacante: Vacante) => {
     const tecnologias = vacante.requisitos?.lenguajes ? vacante.requisitos.lenguajes.join(', ') : '';
@@ -180,6 +190,26 @@ const Dashboard: React.FC = () => {
       </div>
     );
   }
+
+  const handleCerrar = async (id: number) => {
+    if (!window.confirm('¿Estás seguro de cerrar esta vacante? Ya no aparecerá a los aspirantes.')) return;
+
+    try {
+      // Mandamos un PATCH para cambiar el estado activa a false
+      await api.patch(`/vacantes/${id}/`, { activa: false });
+      alert('Vacante cerrada administrativamente');
+      fetchVacantes();
+    } catch (error) {
+      alert('Error al cerrar la vacante');
+    }
+  };
+
+
+
+
+////////////////////////// Renderizado //////////////////////////////////////// 
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -378,6 +408,15 @@ const Dashboard: React.FC = () => {
                   >
                     Editar
                   </button>
+                  {/* NUEVO BOTÓN DE CIERRE */}
+                  {vacante.activa && (
+                    <button
+                      onClick={() => handleCerrar(vacante.id)}
+                      className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition"
+                    >
+                      Cerrar
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDelete(vacante.id)}
                     className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"

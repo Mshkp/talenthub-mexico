@@ -38,10 +38,10 @@ const VacanteDetalle: React.FC = () => {
   }, [id]);
 
   const handleAplicar = async () => {
-    // Usamos el nombre de token correcto
     const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('user_id'); // Rescatamos tu ID
     
-    if (!token) {
+    if (!token || !userId) {
       alert('Debes iniciar sesión para aplicar');
       navigate('/login');
       return;
@@ -50,13 +50,14 @@ const VacanteDetalle: React.FC = () => {
     try {
       await api.post('/aplicaciones/', {
         vacante: id,
+        usuario: userId, // <-- ¡EL ESLABÓN PERDIDO! Ahora Django sabe quién eres
         estado: 'pendiente'
       });
       alert('¡Aplicación enviada exitosamente!');
       navigate('/mis-aplicaciones');
     } catch (error: any) {
       if (error.response?.status === 400) {
-        alert('Ya aplicaste a esta vacante o hubo un error');
+        alert('Ya aplicaste a esta vacante o faltan datos');
       } else {
         alert('Error al aplicar. Intenta de nuevo.');
       }

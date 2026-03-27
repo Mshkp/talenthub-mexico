@@ -116,15 +116,13 @@ class VacanteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        # Filtro base: Solo mostrar las vacantes que están activas
-        queryset = Vacante.objects.filter(activa=True)
-        
-        # Filtro adicional: Si se busca por una empresa en específico
         empresa_id = self.request.query_params.get('empresa')
         if empresa_id:
-            queryset = queryset.filter(empresa_id=empresa_id)
+            # La empresa ve TODAS sus vacantes (activas e inactivas)
+            return Vacante.objects.filter(empresa_id=empresa_id)
             
-        return queryset
+        # El público solo ve las activas
+        return Vacante.objects.filter(activa=True)
 
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
@@ -147,6 +145,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
 
+
         queryset = Empresa.objects.all()
         usuario_id = self.request.query_params.get('usuario')
 
@@ -167,14 +166,21 @@ class AplicacionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        queryset = super().get_queryset()
+        usuario_id = self.request.query_params.get('usuario')
+        empresa_id = self.request.query_params.get('empresa')
 
-        if self.request.user.tipo == 'empresa':
+        # Si pregunta un aspirante, le damos solo sus postulaciones
+        if usuario_id:
+            return queryset.filter(usuario_id=usuario_id)
+            
+        # Si pregunta una empresa, le damos solo las de sus vacantes
+        if empresa_id:
+            return queryset.filter(vacante__empresa_id=empresa_id)
 
-            return Aplicacion.objects.filter(
-                vacante__empresa__usuario=self.request.user
-            )
+        return queryset
 
-        return Aplicacion.objects.filter(usuario=self.request.user)
+
 
 
     def create(self, request, *args, **kwargs):

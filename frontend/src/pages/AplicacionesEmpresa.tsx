@@ -41,14 +41,26 @@ const AplicacionesEmpresa: React.FC = () => {
 
   const fetchAplicaciones = async () => {
     try {
-      const response = await api.get('/aplicaciones/');
-      setAplicaciones(response.data);
+      const userId = localStorage.getItem('user_id');
+      
+      // 1. Buscamos qué empresa es la que inició sesión
+      const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
+      
+      if (empresaResponse.data && empresaResponse.data.length > 0) {
+        const empresaId = empresaResponse.data[0].id;
+        // 2. Pedimos las aplicaciones exclusivas de esta empresa
+        const response = await api.get(`/aplicaciones/?empresa=${empresaId}`);
+        setAplicaciones(response.data);
+      } else {
+        setAplicaciones([]);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Error:', error);
       setLoading(false);
     }
   };
+
 
   const cambiarEstado = async (id: number, nuevoEstado: string) => {
     try {
@@ -160,6 +172,16 @@ const AplicacionesEmpresa: React.FC = () => {
                   <h3 className="text-2xl font-bold text-talenthub-gray mb-1">
                     {aplicacion.usuario_nombre}
                   </h3>
+                  
+                  {/* BOTÓN CV: Usa el CV del usuario, o un PDF de prueba si está vacío */}
+                  <a
+                    href={aplicacion.cv_url || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-gray-100 text-talenthub-blue px-4 py-2 mt-1 mb-3 rounded-lg font-bold text-sm hover:bg-gray-200 transition border border-gray-300 shadow-sm"
+                  >
+                    📄 Ver Currículum (CV)
+                  </a>
                   <p className="text-gray-600 mb-2 font-medium">
                     Aplicó a: <Link to={`/vacantes/${aplicacion.vacante}`} className="text-talenthub-blue hover:underline font-bold">
                       {aplicacion.vacante_titulo}
