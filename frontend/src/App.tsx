@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -11,11 +12,11 @@ import AplicacionesEmpresa from './pages/AplicacionesEmpresa';
 import Perfil from './pages/Perfil';
 import Planes from "./pages/planes";
 
-
 function App() {
   return (
     <Router>
-      
+      {/* El Navbar inteligente siempre va aquí arriba */}
+      <Navbar /> 
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />

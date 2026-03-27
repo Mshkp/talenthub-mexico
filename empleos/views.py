@@ -106,37 +106,34 @@ def register(request):
 
 
 # ==============================
-# VACANTES
+# VACANTES (Unificado y Corregido)
 # ==============================
 
 class VacanteViewSet(viewsets.ModelViewSet):
-
-    queryset = Vacante.objects.all()
+    # ESTA LÍNEA EVITA EL ERROR DE "basename" EN LA TERMINAL
+    queryset = Vacante.objects.all() 
     serializer_class = VacanteSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-
+        # Filtro base: Solo mostrar las vacantes que están activas
         queryset = Vacante.objects.filter(activa=True)
-
+        
+        # Filtro adicional: Si se busca por una empresa en específico
         empresa_id = self.request.query_params.get('empresa')
-
         if empresa_id:
             queryset = queryset.filter(empresa_id=empresa_id)
-
+            
         return queryset
 
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
-
         stats = {
             'total_vacantes': Vacante.objects.filter(activa=True).count(),
             'salario_promedio': Vacante.objects.aggregate(Avg('salario_min'))['salario_min__avg'],
             'por_modalidad': Vacante.objects.values('modalidad').annotate(count=Count('id'))
         }
-
         return Response(stats)
-
 
 # ==============================
 # EMPRESAS

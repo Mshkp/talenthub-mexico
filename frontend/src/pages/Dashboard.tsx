@@ -35,7 +35,6 @@ const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
-
     const userTipo = localStorage.getItem("user_tipo");
 
     if (!localStorage.getItem("token")) {
@@ -51,30 +50,27 @@ const Dashboard: React.FC = () => {
     }
 
     fetchVacantes();
-
   }, []);
 
   const fetchVacantes = async () => {
-  try {
-    // Obtener el ID de la empresa del usuario actual
-    const userResponse = await api.get('/auth/me/');
-    const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
-    const empresaId = empresaResponse.data[0]?.id;
+    try {
+      const userResponse = await api.get('/auth/me/');
+      const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
+      const empresaId = empresaResponse.data[0]?.id;
 
-    if (empresaId) {
-      // Filtrar solo las vacantes de esta empresa
-      const response = await api.get(`/vacantes/?empresa=${empresaId}`);
-      setVacantes(response.data);
-    } else {
-      setVacantes([]);
+      if (empresaId) {
+        const response = await api.get(`/vacantes/?empresa=${empresaId}`);
+        setVacantes(response.data);
+      } else {
+        setVacantes([]);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error:', error);
+      setLoading(false);
     }
-    
-    setLoading(false);
-  } catch (error) {
-    console.error('Error:', error);
-    setLoading(false);
-  }
-};
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -86,49 +82,47 @@ const Dashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-      try {
-        // Obtener el ID de la empresa del usuario actual
-        const userResponse = await api.get('/auth/me/');
-        const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
-        const empresaId = empresaResponse.data[0]?.id || 1;
+    try {
+      const userResponse = await api.get('/auth/me/');
+      const empresaResponse = await api.get(`/empresas/?usuario=${userResponse.data.id}`);
+      const empresaId = empresaResponse.data[0]?.id || 1;
 
-        // Convertir los campos a JSON
-        const tecnologiasArray = formData.tecnologias.split(',').map(t => t.trim()).filter(t => t);
-        
-        const requisitosObj = {
-          lenguajes: tecnologiasArray,
-          experiencia: formData.experiencia,
-          otros: formData.otros_requisitos
-        };
+      const tecnologiasArray = formData.tecnologias.split(',').map(t => t.trim()).filter(t => t);
+      
+      const requisitosObj = {
+        lenguajes: tecnologiasArray,
+        experiencia: formData.experiencia,
+        otros: formData.otros_requisitos
+      };
 
-        const dataToSend = {
-          titulo: formData.titulo,
-          descripcion: formData.descripcion,
-          salario_min: formData.salario_min,
-          salario_max: formData.salario_max,
-          modalidad: formData.modalidad,
-          ubicacion: formData.ubicacion,
-          requisitos: requisitosObj,
-          activa: formData.activa,
-          empresa: empresaId
-        };
+      const dataToSend = {
+        titulo: formData.titulo,
+        descripcion: formData.descripcion,
+        salario_min: formData.salario_min,
+        salario_max: formData.salario_max,
+        modalidad: formData.modalidad,
+        ubicacion: formData.ubicacion,
+        requisitos: requisitosObj,
+        activa: formData.activa,
+        empresa: empresaId
+      };
 
-        if (editando) {
-          await api.put(`/vacantes/${editando}/`, dataToSend);
-          alert('Vacante actualizada exitosamente');
-        } else {
-          await api.post('/vacantes/', dataToSend);
-          alert('Vacante creada exitosamente');
-        }
+      if (editando) {
+        await api.put(`/vacantes/${editando}/`, dataToSend);
+        alert('Vacante actualizada exitosamente');
+      } else {
+        await api.post('/vacantes/', dataToSend);
+        alert('Vacante creada exitosamente');
+      }
 
       setShowForm(false);
       setEditando(null);
       limpiarForm();
       fetchVacantes();
-      } catch (error: any) {
+    } catch (error: any) {
       console.error('Error:', error);
       alert('Error al guardar: ' + (error.response?.data?.detail || 'Intenta de nuevo'));
-      }
+    }
   };
 
   const handleEdit = (vacante: Vacante) => {
@@ -188,38 +182,9 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/dashboard" className="text-2xl font-bold text-talenthub-blue">
-            TalentHub México
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/vacantes" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Ver Vacantes
-            </Link>
-            <Link to="/aplicaciones-empresa" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Aplicaciones
-            </Link>
-            <span className="text-talenthub-gray font-semibold">
-              Hola, {localStorage.getItem('user_username')}
-            </span>
-            <button 
-              onClick={() => {
-                localStorage.clear();
-                navigate('/');
-              }}
-              className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
-            >
-              Cerrar Sesión
-            </button>
-          </div>
-        </div>
-      </nav>
-
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
@@ -245,7 +210,6 @@ const Dashboard: React.FC = () => {
             <h2 className="text-2xl font-bold text-talenthub-gray mb-6">
               {editando ? 'Editar Vacante' : 'Nueva Vacante'}
             </h2>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -261,7 +225,6 @@ const Dashboard: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Ubicación *
@@ -307,7 +270,6 @@ const Dashboard: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Salario Máximo (MXN) *
@@ -322,7 +284,6 @@ const Dashboard: React.FC = () => {
                     required
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Modalidad *
