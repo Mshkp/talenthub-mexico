@@ -16,23 +16,24 @@ const MisAplicaciones: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  const token = localStorage.getItem('access_token');
-  const userTipo = localStorage.getItem('user_tipo');
-  
-  if (!token) {
-    alert('Debes iniciar sesión');
-    navigate('/login');
-    return;
-  }
-  
-  if (userTipo !== 'aspirante') {
-    alert('Solo los aspirantes pueden ver aplicaciones');
-    navigate('/dashboard');
-    return;
-  }
-  
-  fetchAplicaciones();
-}, [navigate]);
+    // Usamos el nombre de token correcto
+    const token = localStorage.getItem('token');
+    const userTipo = localStorage.getItem('user_tipo');
+    
+    if (!token) {
+      alert('Debes iniciar sesión para ver tus postulaciones');
+      navigate('/login');
+      return;
+    }
+    
+    if (userTipo !== 'aspirante') {
+      alert('Solo los aspirantes pueden ver sus aplicaciones');
+      navigate('/dashboard');
+      return;
+    }
+    
+    fetchAplicaciones();
+  }, [navigate]);
 
   const fetchAplicaciones = async () => {
     try {
@@ -68,92 +69,45 @@ const MisAplicaciones: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-talenthub-gray">Cargando...</div>
+        <div className="text-xl text-talenthub-gray font-semibold">Cargando tus postulaciones...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-<nav className="bg-white shadow-md">
-  <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-    <Link to="/vacantes" className="text-2xl font-bold text-talenthub-blue">
-      TalentHub México
-    </Link>
-    <div className="flex items-center gap-4">
-      {localStorage.getItem('access_token') ? (
-        <>
-          {localStorage.getItem('user_tipo') === 'aspirante' ? (
-            <Link to="/mis-aplicaciones" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Mis Aplicaciones
-            </Link>
-          ) : (
-            <Link to="/dashboard" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-              Dashboard
-            </Link>
-          )}
-          <span className="text-talenthub-gray font-semibold">
-            Hola, {localStorage.getItem('user_username')}
-          </span>
-          <button 
-            onClick={() => {
-              localStorage.clear();
-              navigate('/');
-            }}
-            className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition"
-          >
-            Cerrar Sesión
-          </button>
-        </>
-      ) : (
-        <>
-          <Link to="/login" className="text-talenthub-gray hover:text-talenthub-blue font-semibold">
-            Iniciar Sesión
-          </Link>
-          <Link to="/register" className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
-            Registrarse
-          </Link>
-        </>
-      )}
-    </div>
-  </div>
-</nav>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
             Mis Aplicaciones
           </h1>
-          <p className="text-gray-600">{aplicaciones.length} aplicaciones realizadas</p>
+          <p className="text-gray-600 text-lg font-medium">{aplicaciones.length} aplicaciones realizadas</p>
         </div>
 
-        {/* Lista de Aplicaciones */}
         <div className="space-y-4">
           {aplicaciones.map((aplicacion) => (
-            <div key={aplicacion.id} className="bg-white rounded-lg shadow-md p-6">
+            <div key={aplicacion.id} className="bg-white rounded-lg shadow-md p-6 border-l-4 border-talenthub-blue">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-talenthub-gray mb-2">
+                  <h3 className="text-2xl font-bold text-talenthub-gray mb-2">
                     {aplicacion.vacante_titulo}
                   </h3>
-                  <p className="text-sm text-gray-600 mb-3">
+                  <p className="text-sm text-gray-500 mb-4 font-medium">
                     Aplicado el {new Date(aplicacion.fecha_aplicacion).toLocaleDateString('es-MX', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
                     })}
                   </p>
-                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getEstadoColor(aplicacion.estado)}`}>
+                  <span className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${getEstadoColor(aplicacion.estado)}`}>
                     {getEstadoTexto(aplicacion.estado)}
                   </span>
                 </div>
                 <Link
                   to={`/vacantes/${aplicacion.vacante}`}
-                  className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+                  className="bg-talenthub-blue text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
                 >
-                  Ver Vacante
+                  Ver Detalles
                 </Link>
               </div>
             </div>
@@ -161,14 +115,14 @@ const MisAplicaciones: React.FC = () => {
         </div>
 
         {aplicaciones.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <h3 className="text-2xl font-bold text-gray-600 mb-4">No tienes aplicaciones aún</h3>
-            <p className="text-gray-500 mb-6">Explora las vacantes disponibles y aplica a las que te interesen</p>
+          <div className="bg-white rounded-lg shadow-md p-12 text-center border-t-4 border-talenthub-blue">
+            <h3 className="text-3xl font-bold text-gray-700 mb-4">No tienes aplicaciones aún</h3>
+            <p className="text-gray-500 mb-8 text-lg">Explora las vacantes disponibles y aplica a las que más te interesen para impulsar tu carrera.</p>
             <Link
               to="/vacantes"
-              className="inline-block bg-talenthub-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="inline-block bg-talenthub-blue text-white px-10 py-4 rounded-lg font-bold text-lg hover:bg-blue-700 transition shadow-lg"
             >
-              Ver Vacantes
+              Explorar Vacantes
             </Link>
           </div>
         )}

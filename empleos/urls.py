@@ -27,10 +27,11 @@ router.register(r'notificaciones', NotificacionViewSet, basename='notificaciones
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('register/', register),
+    # Quitamos el auth/ para que coincida con el error 404 que vemos en consola
+    path('register/', register), 
+    path('login/', login),       
+    
     path('user-info/', get_user_info),
     path('pago/crear/', crear_pago),
     path("pago/capturar/", capturar_pago),
-    path('login/', login)
 ]
-

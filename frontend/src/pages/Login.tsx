@@ -40,6 +40,7 @@ const Login: React.FC = () => {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user_tipo', response.data.tipo);
       localStorage.setItem('user_username', response.data.username);
+      localStorage.setItem('user_id', response.data.id);
 
       // MUY IMPORTANTE: actualizar axios con el token
       api.defaults.headers.common['Authorization'] = `Token ${response.data.token}`;

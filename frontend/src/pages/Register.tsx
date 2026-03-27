@@ -34,7 +34,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      await api.post('/auth/register/', {
+      await api.post('/register/', {
         username: formData.username,
         email: formData.email,
         password: formData.password,

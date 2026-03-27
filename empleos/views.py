@@ -106,37 +106,32 @@ def register(request):
 
 
 # ==============================
-# VACANTES
+# VACANTES (Unificado y Corregido)
 # ==============================
 
 class VacanteViewSet(viewsets.ModelViewSet):
-
-    queryset = Vacante.objects.all()
+    # ESTA LÍNEA EVITA EL ERROR DE "basename" EN LA TERMINAL
+    queryset = Vacante.objects.all() 
     serializer_class = VacanteSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-
-        queryset = Vacante.objects.filter(activa=True)
-
         empresa_id = self.request.query_params.get('empresa')
-
         if empresa_id:
-            queryset = queryset.filter(empresa_id=empresa_id)
-
-        return queryset
+            # La empresa ve TODAS sus vacantes (activas e inactivas)
+            return Vacante.objects.filter(empresa_id=empresa_id)
+            
+        # El público solo ve las activas
+        return Vacante.objects.filter(activa=True)
 
     @action(detail=False, methods=['get'])
     def estadisticas(self, request):
-
         stats = {
             'total_vacantes': Vacante.objects.filter(activa=True).count(),
             'salario_promedio': Vacante.objects.aggregate(Avg('salario_min'))['salario_min__avg'],
             'por_modalidad': Vacante.objects.values('modalidad').annotate(count=Count('id'))
         }
-
         return Response(stats)
-
 
 # ==============================
 # EMPRESAS
@@ -149,6 +144,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
+
 
         queryset = Empresa.objects.all()
         usuario_id = self.request.query_params.get('usuario')
@@ -170,14 +166,21 @@ class AplicacionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        queryset = super().get_queryset()
+        usuario_id = self.request.query_params.get('usuario')
+        empresa_id = self.request.query_params.get('empresa')
 
-        if self.request.user.tipo == 'empresa':
+        # Si pregunta un aspirante, le damos solo sus postulaciones
+        if usuario_id:
+            return queryset.filter(usuario_id=usuario_id)
+            
+        # Si pregunta una empresa, le damos solo las de sus vacantes
+        if empresa_id:
+            return queryset.filter(vacante__empresa_id=empresa_id)
 
-            return Aplicacion.objects.filter(
-                vacante__empresa__usuario=self.request.user
-            )
+        return queryset
 
-        return Aplicacion.objects.filter(usuario=self.request.user)
+
 
 
     def create(self, request, *args, **kwargs):
