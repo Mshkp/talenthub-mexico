@@ -3,6 +3,21 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.authtoken.models import Token
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.conf import settings
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.utils.http import urlsafe_base64_decode
+
+from django.contrib.auth import get_user_model
+
+# Esto le dice a Django: "Trae el modelo de usuarios que estemos usando en este proyecto"
+User = get_user_model()
 
 
 from django.contrib.auth.hashers import make_password
@@ -724,3 +739,74 @@ def eliminar_tecnologia(request, pk):
         return Response({"mensaje": "Tecnología eliminada correctamente"})
     except Tecnologia.DoesNotExist:
         return Response({"error": "Tecnología no encontrada"}, status=404)
+    
+
+
+@api_view(['POST'])
+def solicitar_recuperacion_password(request):
+    correo = request.data.get('email')
+    
+    if not correo:
+        return Response({"error": "Debes proporcionar un correo electrónico."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(email=correo)
+    except User.DoesNotExist:
+        # Por seguridad, respondemos esto incluso si no existe, 
+        # para que nadie pueda adivinar qué correos están registrados en TalentHub.
+        return Response({"mensaje": "Si el correo coincide con una cuenta, enviaremos un enlace."}, status=status.HTTP_200_OK)
+    
+    # 1. Generamos el ID codificado y el Token seguro
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    
+    # 2. Armamos el link de recuperación
+    # OJO: Este link apunta a tu REACT (por ahora localhost:3000 o 5173). 
+    # Cuando lo subas a producción, CAMBIAR A por el dominio de Vercel.
+    frontend_url = "http://localhost:3000/restablecer-password" 
+    enlace_recuperacion = f"{frontend_url}/{uid}/{token}/"
+    
+    # 3. Redactamos el correo
+    asunto = "Recuperación de contraseña - TalentHub"
+    mensaje = f"Hola,\n\nRecibimos una solicitud para restablecer tu contraseña en TalentHub.\n\nHaz clic en el siguiente enlace para crear una nueva:\n{enlace_recuperacion}\n\nSi no solicitaste esto, puedes ignorar este correo sin problema."
+    
+    # 4. Lo enviamos
+    try:
+        send_mail(
+            asunto,
+            mensaje,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+        return Response({"mensaje": "Si el correo coincide con una cuenta, enviaremos un enlace."}, status=status.HTTP_200_OK)
+    except Exception as e:
+        print(f"ERROR DE CORREO: {e}") # <-- Esto nos dirá el problema real en la terminal
+        return Response({"error": "Hubo un problema al enviar el correo desde el servidor."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['POST'])
+def confirmar_nueva_password(request):
+    # Recibimos los 3 datos que React nos va a mandar
+    uidb64 = request.data.get('uid')
+    token = request.data.get('token')
+    nueva_password = request.data.get('new_password')
+    
+    if not all([uidb64, token, nueva_password]):
+        return Response({"error": "Faltan datos requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Decodificamos el ID del usuario
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+        
+    # Verificamos que el usuario exista y que el token del correo sea el correcto
+    if user is not None and default_token_generator.check_token(user, token):
+        # ¡Todo coincide! Guardamos la nueva contraseña de forma segura
+        user.set_password(nueva_password)
+        user.save()
+        return Response({"mensaje": "¡Contraseña actualizada con éxito!"}, status=status.HTTP_200_OK)
+    else:
+        return Response({"error": "El enlace de recuperación no es válido o ya expiró."}, status=status.HTTP_400_BAD_REQUEST)

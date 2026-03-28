@@ -49,4 +49,6 @@ urlpatterns = [
     path('validador/vacantes/historial/', views.historial_vacantes, name='historial_vacantes'),
     path('validador/tecnologias/', views.catalogo_tecnologias, name='catalogo_tecnologias'),
     path('validador/tecnologias/<int:pk>/', views.eliminar_tecnologia, name='eliminar_tecnologia'),
+    path('recuperar-password/', views.solicitar_recuperacion_password, name='recuperar_password'),
+    path('confirmar-password/', views.confirmar_nueva_password, name='confirmar_password'),
 ]

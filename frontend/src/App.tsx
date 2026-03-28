@@ -14,6 +14,14 @@ import Planes from "./pages/planes";
 import Checkout from './pages/Checkout';
 import DashboardValidador from './pages/DashboardValidador';
 import PerfilAspirante from './pages/PerfilAspirante';
+import SolicitarRecuperacion from './pages/auth/SolicitarRecuperacion';
+import RestablecerPassword from './pages/auth/RestablecerPassword';
+
+
+
+
+
+
 
 function App() {
   return (
@@ -34,6 +42,9 @@ function App() {
         <Route path="/checkout/:planId" element={<Checkout />} />
         <Route path="/validador" element={<DashboardValidador />} />
         <Route path="/mi-perfil" element={<PerfilAspirante />} />
+        <Route path="/olvide-password" element={<SolicitarRecuperacion />} />
+        {/* ¡El :uid y :token son vitales para que useParams funcione */}
+        <Route path="/restablecer-password/:uid/:token" element={<RestablecerPassword />} />
       </Routes>
     </Router>
   );

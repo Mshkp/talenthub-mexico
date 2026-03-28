@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { showSuccess } from '../utils/alerts';
 
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -85,6 +86,12 @@ const Login: React.FC = () => {
         </form>
 
         <p className="text-center text-gray-600 mt-6">
+          <div className="text-center mt-3 mb-2 text-blue-600 hover:underline text-sm">
+              <Link to="/olvide-password" style={{ color: '#610000', textDecoration: 'none', fontSize: '16px' }}>
+                ¿Olvidaste tu contraseña?
+              </Link>
+          </div>
+
           ¿No tienes cuenta?{' '}
           <Link to="/register" className="text-talenthub-blue font-semibold hover:underline">Regístrate aquí</Link>
         </p>
