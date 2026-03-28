@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Lock, ShieldCheck, Loader2, Info, AlertTriangle } from 'lucide-react';
+import PasswordValidator from '../../components/PasswordValidator'; // Ajusta la ruta según donde lo guardes
 
 export default function RestablecerPassword() {
   const { uid, token } = useParams();
@@ -11,12 +12,22 @@ export default function RestablecerPassword() {
   const [mensaje, setMensaje] = useState('');
   const [esError, setEsError] = useState(false);
   const [cargando, setCargando] = useState(false);
+  
+  // NUEVO ESTADO: Controla si la contraseña pasó la validación del componente
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMensaje('');
     setEsError(false);
     
+    // Validación de seguridad (S-SDLC) antes de enviar al backend
+    if (!isPasswordValid) {
+      setEsError(true);
+      setMensaje('La contraseña no cumple con las políticas de seguridad mínimas.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setEsError(true);
       setMensaje('Anomalía: Las contraseñas no coinciden.');
@@ -36,11 +47,11 @@ export default function RestablecerPassword() {
 
       if (response.ok) {
         setEsError(false);
-        setMensaje('Contraseña actualizada! Redirigiendo al login...');
+        setMensaje('¡Credenciales actualizadas! Redirigiendo al puerto de acceso...');
         setTimeout(() => navigate('/login'), 3000);
       } else {
         setEsError(true);
-        setMensaje(data.error || 'Error al validar la nueva contraseña.');
+        setMensaje(data.error || 'Error al validar la nueva credencial.');
         setCargando(false);
       }
     } catch (error) {
@@ -50,7 +61,9 @@ export default function RestablecerPassword() {
     }
   };
 
-  // ESTILOS TIPO TALENTHUB (Tarjetas clean con acento de color)
+
+
+// ESTILOS TIPO TALENTHUB (Tarjetas clean con acento de color)
   const styles = {
     wrapper: {
       minHeight: '80vh',
@@ -153,13 +166,17 @@ export default function RestablecerPassword() {
     }
   };
 
+
+
+
+
   return (
     <div style={styles.wrapper}>
       <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
       
       <div style={styles.card}>
         <div style={styles.header}>
-          <ShieldCheck size={44} color="#2564eb" />
+          <ShieldCheck size={44} color="#3b82f6" />
           <h2 style={styles.title}>Establecer Nueva Contraseña</h2>
           <p style={styles.subtitle}>Define tus nuevas credenciales de acceso</p>
         </div>
@@ -177,6 +194,14 @@ export default function RestablecerPassword() {
             />
           </div>
 
+          {/* AQUÍ VA EL COMPONENTE DE VALIDACIÓN */}
+          {password.length > 0 && (
+            <PasswordValidator 
+              password={password} 
+              onValidationChange={setIsPasswordValid} 
+            />
+          )}
+
           <div style={styles.inputGroup}>
             <Lock style={styles.inputIcon} size={20} />
             <input 
@@ -189,21 +214,21 @@ export default function RestablecerPassword() {
             />
           </div>
 
-          <button type="submit" style={{...styles.button, ...(cargando ? styles.buttonDisabled : {})}} disabled={cargando}>
+          {/* El botón se deshabilita si está cargando o si la contraseña no es segura */}
+          <button 
+            type="submit" 
+            style={{...styles.button, ...((cargando || !isPasswordValid) ? styles.buttonDisabled : {})}} 
+            disabled={cargando || !isPasswordValid}
+          >
             {cargando ? (
               <><Loader2 style={styles.spin} size={20} /> ACTUALIZANDO...</>
             ) : (
-              'ACTUALIZAR CONTRASEÑA'
+              'ACTUALIZAR CREDENCIAL'
             )}
           </button>
         </form>
 
-        {mensaje && (
-          <div style={{...styles.messageBox, ...(esError ? styles.errorMsg : styles.successMsg)}}>
-            {esError ? <AlertTriangle size={18} /> : <Info size={18} />}
-            {mensaje}
-          </div>
-        )}
+        {/* ... (Mensajes de error/éxito) ... */}
       </div>
     </div>
   );

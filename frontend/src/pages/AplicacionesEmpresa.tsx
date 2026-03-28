@@ -12,6 +12,8 @@ interface Aplicacion {
   fecha_aplicacion: string;
   cv_url?: string;
   carta_presentacion?: string;
+  usuario_email?: string;
+  usuario_telefono?: string;
 }
 
 const AplicacionesEmpresa: React.FC = () => {
@@ -170,14 +172,21 @@ const AplicacionesEmpresa: React.FC = () => {
                   </h3>
                   
                   {/* BOTÓN CV */}
-                  <a
-                    href={aplicacion.cv_url || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block bg-gray-100 text-talenthub-blue px-4 py-2 mt-1 mb-3 rounded-lg font-bold text-sm hover:bg-gray-200 transition border border-gray-300 shadow-sm"
-                  >
-                    📄 Ver Currículum (CV)
-                  </a>
+                  {aplicacion.cv_url ? (
+                    <a
+                      href={aplicacion.cv_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block bg-gray-100 text-talenthub-blue px-4 py-2 mt-1 mb-3 rounded-lg font-bold text-sm hover:bg-gray-200 transition border border-gray-300 shadow-sm"
+                    >
+                      📄 Ver Currículum (CV)
+                    </a>
+                  ) : (
+                    <span className="inline-block bg-red-50 text-red-500 px-4 py-2 mt-1 mb-3 rounded-lg font-bold text-sm border border-red-200">
+                      ⚠️ CV no proporcionado
+                    </span>
+                  )}
+
                   <p className="text-gray-600 mb-2 font-medium">
                     Aplicó a: <Link to={`/vacantes/${aplicacion.vacante}`} className="text-talenthub-blue hover:underline font-bold">
                       {aplicacion.vacante_titulo}
@@ -185,11 +194,7 @@ const AplicacionesEmpresa: React.FC = () => {
                   </p>
                   <p className="text-sm text-gray-500 font-medium">
                     📅 {new Date(aplicacion.fecha_aplicacion).toLocaleDateString('es-MX', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
+                      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     })}
                   </p>
                 </div>
@@ -198,15 +203,25 @@ const AplicacionesEmpresa: React.FC = () => {
                 </span>
               </div>
 
-              {aplicacion.carta_presentacion && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
-                  <h4 className="font-bold text-gray-800 mb-2">Carta de presentación:</h4>
-                  <p className="text-gray-700 text-sm leading-relaxed">{aplicacion.carta_presentacion}</p>
+              {/* --- S-SDLC: DATOS DE CONTACTO (Solo visibles si es Aceptado o Revisado) --- */}
+              {(aplicacion.estado === 'aceptado' || aplicacion.estado === 'revisado') ? (
+                <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-200">
+                  <h4 className="font-bold text-green-800 mb-2">📞 Información de Contacto:</h4>
+                  <div className="text-green-900 text-sm flex flex-col gap-1">
+                    <p><strong>Email:</strong> {aplicacion.usuario_email || 'No disponible'}</p>
+                    <p><strong>Teléfono:</strong> {aplicacion.usuario_telefono || 'No proporcionado'}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200 text-center">
+                  <p className="text-gray-500 text-sm font-medium">
+                    🔒 Cambia el estado a "En Revisión" o "Aceptar" para ver los datos de contacto del candidato.
+                  </p>
                 </div>
               )}
 
               {/* Acciones */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t">
+              <div className="flex flex-wrap gap-2 pt-4 border-t mt-4">
                 <button
                   onClick={() => cambiarEstado(aplicacion.id, 'revisado')}
                   disabled={aplicacion.estado === 'revisado'}
@@ -255,6 +270,7 @@ const AplicacionesEmpresa: React.FC = () => {
           </div>
         )}
       </div>
+
     </div>
   );
 };

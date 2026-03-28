@@ -13,6 +13,7 @@ const PerfilAspirante: React.FC = () => {
     habilidades: ''
   });
 
+
   // Estados separados para los archivos reales y las URLs para mostrarlos
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -60,7 +61,6 @@ const PerfilAspirante: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Usamos FormData para poder empaquetar archivos reales
       const dataToSend = new FormData();
       dataToSend.append('profesion', formData.profesion);
       dataToSend.append('experiencia_resumen', formData.experiencia_resumen);
@@ -71,15 +71,33 @@ const PerfilAspirante: React.FC = () => {
       if (cvFile) dataToSend.append('cv', cvFile);
       if (fotoFile) dataToSend.append('foto', fotoFile);
 
-      // Enviamos con header especial para archivos
+
+      // S-SDLC Fix: Neutraliza cualquier header global de JSON para permitir el boundary nativo
       await api.put('/perfil/aspirante/', dataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+          'Content-Type': undefined 
+        }
       });
+
       
       showSuccess('¡Perfil actualizado con éxito!');
-      cargarPerfil(); // Recargamos para ver los archivos nuevos
-    } catch (error) {
-      showError('Error al guardar los cambios');
+      cargarPerfil(); 
+    } catch (error: any) {
+      // S-SDLC: Manejo de errores detallado
+      console.log("ERROR DEL BACKEND:", error.response?.data);
+      
+      // Intentamos sacar el primer mensaje de error que nos mande Django
+      const dataError = error.response?.data;
+      let errorMsg = 'Error al guardar los cambios';
+      
+      if (dataError) {
+        if (dataError.cv) errorMsg = dataError.cv[0];
+        else if (dataError.foto) errorMsg = dataError.foto[0];
+        else if (dataError.habilidades) errorMsg = dataError.habilidades[0];
+        else if (dataError.detail) errorMsg = dataError.detail;
+      }
+      
+      showError(errorMsg);
     }
   };
 
@@ -127,15 +145,32 @@ const PerfilAspirante: React.FC = () => {
               <textarea name="experiencia_resumen" value={formData.experiencia_resumen} onChange={handleChange} rows={3} placeholder="Cuéntanos sobre tu trayectoria profesional..." className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
 
+            {/* Lógica Visual de Archivos (UX Mejorado) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">📸 Foto de Perfil</label>
-                <input type="file" name="foto" accept="image/*" onChange={handleFileChange} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              <div className={`p-4 rounded-lg border ${fotoUrlActual ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'} transition-colors`}>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  {fotoUrlActual ? '🔄 Cambiar Foto de Perfil' : '📸 Subir Foto de Perfil'}
+                </label>
+                <input 
+                  type="file" 
+                  name="foto" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer transition" 
+                />
               </div>
               
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">📄 Subir CV (PDF)</label>
-                <input type="file" name="cv" accept=".pdf" onChange={handleFileChange} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              <div className={`p-4 rounded-lg border ${cvUrlActual ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'} transition-colors`}>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  {cvUrlActual ? '🔄 Actualizar Documento CV' : '📄 Subir CV (PDF)'}
+                </label>
+                <input 
+                  type="file" 
+                  name="cv" 
+                  accept=".pdf" 
+                  onChange={handleFileChange} 
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200 cursor-pointer transition" 
+                />
               </div>
             </div>
 

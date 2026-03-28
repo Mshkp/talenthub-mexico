@@ -1,49 +1,62 @@
-import React from "react";
+import React, { useState, useEffect } from "react"; // Añade useState y useEffect
 import { Link, useLocation } from "react-router-dom";
+import api from "../services/api"; // Importa tu API
+import { Bell } from "lucide-react"; // Usamos lucide-react para la campanita
 
 const Navbar: React.FC = () => {
   const location = useLocation();
-  const isHome = location.pathname === "/"; // Detecta si estamos en el Index
+  const isHome = location.pathname === "/";
   const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
 
   const token = localStorage.getItem("token");
   const username = localStorage.getItem("user_username");
   const tipo = localStorage.getItem("user_tipo");
 
+  // Estado para la campanita
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // Si hay usuario logueado, checamos sus notificaciones
+    if (token) {
+      const fetchNotifications = async () => {
+        try {
+          const response = await api.get('/notificaciones/');
+          // Contamos cuántas tienen leido=false
+          const unread = response.data.filter((n: any) => !n.leido).length;
+          setUnreadCount(unread);
+        } catch (error) {
+          console.error("Error cargando notificaciones");
+        }
+      };
+      fetchNotifications();
+    }
+  }, [token, location.pathname]); // Se actualiza al cambiar de ruta
+
   const logout = () => {
     localStorage.clear();
     window.location.href = "/";
   };
 
-  // Si estamos en Login o Register, ocultamos el Navbar entero para que se vea más limpio
   if (isAuthPage) return null;
 
-  // LÓGICA DEL LOGO INTELIGENTE: Decide a dónde te lleva el logo según quién eres
   let rutaLogo = "/";
   if (token) {
-    // La Empresa va a su creador, los demás (Aspirantes y Validador) van al muro público
     rutaLogo = tipo === "empresa" ? "/dashboard" : "/vacantes";
   }
-  
 
   return (
     <nav className="bg-white shadow-md px-8 py-4 flex justify-between items-center">
-      
-      {/* AQUÍ APLICAMOS LA RUTA INTELIGENTE */}
       <Link to={rutaLogo} className="text-2xl font-bold text-talenthub-blue">
         TalentHub México
       </Link>
 
       <div className="flex gap-4 items-center">
-        
-        {/* Vacantes: Se oculta en el Index. Solo lo ven Aspirantes o visitantes en otras páginas */}
         {!isHome && tipo !== "empresa" && tipo !== "validador" && (
           <Link to="/vacantes" className="text-gray-700 hover:text-blue-600 font-medium">
             Vacantes
           </Link>
         )}
 
-        {/* Solo Aspirantes logueados */}
         {tipo === "aspirante" && (
           <>
             <Link to="/mi-perfil" className="text-gray-700 hover:text-blue-600 font-medium">
@@ -55,8 +68,7 @@ const Navbar: React.FC = () => {
           </>
         )}
 
-
-        {/* Dashboard: Solo Empresas logueadas */}
+        {/* ... (Tus otros links de empresa/validador/planes quedan igual) ... */}
         {tipo === "empresa" && (
           <>
             <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 font-medium">
@@ -67,36 +79,37 @@ const Navbar: React.FC = () => {
             </Link>
           </>
         )}
-
-        {/* Panel de Validador: Solo Validadores */}
+        
         {tipo === "validador" && (
           <Link to="/validador" className="text-red-600 font-bold hover:text-red-800 transition">
             🛡️ Panel de Auditoría
           </Link>
         )}
 
-        {/* Planes: Se oculta en el Index y para el Validador */}
         {!isHome && tipo !== "validador" && (
           <Link to="/planes" className="text-gray-700 hover:text-blue-600 font-medium">
             Planes
           </Link>
         )}
 
-        {/* Botones de Autenticación */}
+        {/* CONTROLES DE SESIÓN Y NOTIFICACIONES */}
         {!token ? (
           <>
-            <Link to="/login" className="text-gray-700 hover:text-blue-600 font-medium">
-              Iniciar Sesión
-            </Link>
-            <Link
-              to="/register"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-            >
-              Registrarse
-            </Link>
+            <Link to="/login" className="text-gray-700 hover:text-blue-600 font-medium">Iniciar Sesión</Link>
+            <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">Registrarse</Link>
           </>
         ) : (
-          <>
+          <div className="flex items-center gap-6">
+            {/* LA CAMPANITA */}
+            <Link to="/mis-aplicaciones" className="relative text-gray-500 hover:text-talenthub-blue transition">
+              <Bell size={24} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+
             <span className="text-gray-700 font-semibold">
               Hola, {username}
             </span>
@@ -106,7 +119,7 @@ const Navbar: React.FC = () => {
             >
               Cerrar sesión
             </button>
-          </>
+          </div>
         )}
       </div>
     </nav>

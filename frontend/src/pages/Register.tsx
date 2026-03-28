@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { showSuccess } from '../utils/alerts';
+import PasswordValidator from '../components/PasswordValidator'; // Importación del componente de seguridad
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ const Register: React.FC = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // NUEVO ESTADO: Controla si la contraseña cumple con las políticas de seguridad
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -28,6 +32,12 @@ const Register: React.FC = () => {
     e.preventDefault();
     setError('');
     
+    // S-SDLC: Validación de políticas antes de procesar datos
+    if (!isPasswordValid) {
+      setError('La contraseña no cumple con las políticas de seguridad mínimas.');
+      return;
+    }
+
     if (formData.password !== formData.password2) {
       setError('Las contraseñas no coinciden');
       return;
@@ -103,12 +113,21 @@ const Register: React.FC = () => {
             <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
           </div>
 
+          {/* INTEGRACIÓN DEL VALIDADOR DE CONTRASEÑA */}
+          {formData.password.length > 0 && (
+            <PasswordValidator 
+              password={formData.password} 
+              onValidationChange={setIsPasswordValid} 
+            />
+          )}
+
           <div>
             <label className="block text-sm font-semibold text-talenthub-gray mb-1">Confirmar contraseña</label>
             <input type="password" name="password2" value={formData.password2} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400">
+          {/* El botón se deshabilita si está cargando o la contraseña es inválida */}
+          <button type="submit" disabled={loading || !isPasswordValid} className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400">
             {loading ? 'Registrando...' : 'Crear cuenta'}
           </button>
         </form>

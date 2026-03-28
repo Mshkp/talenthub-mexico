@@ -55,6 +55,9 @@ from .serializers import (
 from .paypal_config import get_access_token
 
 
+import json
+
+
 # ==============================
 # LOGIN
 # ==============================
@@ -810,3 +813,38 @@ def confirmar_nueva_password(request):
         return Response({"mensaje": "¡Contraseña actualizada con éxito!"}, status=status.HTTP_200_OK)
     else:
         return Response({"error": "El enlace de recuperación no es válido o ya expiró."}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def mi_perfil_aspirante(request):
+    """Obtiene o actualiza el perfil del aspirante logueado"""
+    if request.user.tipo != 'aspirante':
+        return Response({"error": "Solo los aspirantes tienen este perfil."}, status=403)
+
+    perfil, created = Aspirante.objects.get_or_create(usuario=request.user)
+
+    if request.method == 'GET':
+        serializer = AspiranteSerializer(perfil)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        # --- S-SDLC Fix: Evitar el "QueryDict Trap" ---
+        # Convertimos los datos a un diccionario nativo para que las listas no colapsen
+        data = {key: request.data.get(key) for key in request.data.keys()}
+        
+        # Procesamos las habilidades de texto a lista nativa
+        if 'habilidades' in data and isinstance(data['habilidades'], str):
+            try:
+                data['habilidades'] = json.loads(data['habilidades'])
+            except json.JSONDecodeError:
+                data['habilidades'] = []
+        # ----------------------------------------------
+
+        serializer = AspiranteSerializer(perfil, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=400)
