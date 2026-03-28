@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Lock, ShieldCheck, Loader2, Info, AlertTriangle } from 'lucide-react';
+import { Lock, ShieldCheck, Loader2,} from 'lucide-react';
 import PasswordValidator from '../../components/PasswordValidator'; // Ajusta la ruta según donde lo guardes
 
 export default function RestablecerPassword() {
@@ -9,8 +9,8 @@ export default function RestablecerPassword() {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [mensaje, setMensaje] = useState('');
-  const [esError, setEsError] = useState(false);
+  // const [mensaje, setMensaje] = useState('');
+  // const [esError, setEsError] = useState(false);
   const [cargando, setCargando] = useState(false);
   
   // NUEVO ESTADO: Controla si la contraseña pasó la validación del componente
