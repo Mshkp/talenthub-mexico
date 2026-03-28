@@ -30,7 +30,16 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['talenthub-mexico.onrender.com', 'localhost', '127.0.0.1']
+# 1. Ajustar el DEBUG y ALLOWED_HOSTS
+# En lugar de DEBUG = True "quemado", lo leemos del entorno (Render).
+# Si no hay variable, por seguridad será False.
+DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
+
+ALLOWED_HOSTS = ['talenthub-mexico.onrender.com', 
+                 'talent-hub.me', 
+                 'www.talent-hub.me', 
+                 'localhost',
+                 '127.0.0.1']
 
 
 # Application definition
@@ -150,8 +159,12 @@ AUTH_USER_MODEL = 'empleos.Usuario'
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://talent-hub.me",
+    "https://www.talent-hub.me",
 ]
 
+
+CORS_ALLOW_CREDENTIALS = True
 
 
 REST_FRAMEWORK = {
