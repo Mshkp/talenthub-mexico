@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Lock, ShieldCheck, Loader2,} from 'lucide-react';
@@ -9,8 +10,8 @@ export default function RestablecerPassword() {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  // const [mensaje, setMensaje] = useState('');
-  // const [esError, setEsError] = useState(false);
+  const [mensaje, setMensaje] = useState('');
+  const [esError, setEsError] = useState(false);
   const [cargando, setCargando] = useState(false);
   
   // NUEVO ESTADO: Controla si la contraseña pasó la validación del componente
