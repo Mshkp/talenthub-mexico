@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import axios from "axios";
 import api from '../services/api'; 
 import { showSuccess, showError, showConfirm } from '../utils/alerts';
-
 
 interface Plan {
   id: number;
@@ -107,6 +105,7 @@ const Planes = () => {
       return (
         <div
           key={plan.id}
+          className="w-full max-w-sm mx-auto" 
           style={{
             background: "white",
             borderRadius: "20px",
@@ -198,7 +197,8 @@ const Planes = () => {
   };
 
   return (
-    <div style={{ padding: "60px 80px", minHeight: "calc(100vh - 80px)", backgroundColor: "#f9fafb" }}>
+    // CAMBIO AQUÍ: Usamos clases de Tailwind (px-4 py-12) en vez del padding fijo que rompía el móvil
+    <div className="px-4 py-12 md:py-16 md:px-20" style={{ minHeight: "calc(100vh - 80px)", backgroundColor: "#f9fafb" }}>
       <h1 style={{ textAlign: "center", fontSize: "36px", fontWeight: "800", marginBottom: "10px", color: "#1f2937" }}>
         💳 Planes de Suscripción
       </h1>
@@ -206,13 +206,13 @@ const Planes = () => {
         Elige el plan que mejor se adapte a tus necesidades y potencia tu experiencia en TalentHub 🚀
       </p>
 
-      {/* AQUÍ ESTÁ EL BANNER AHORA (Afuera de las tarjetas) */}
       {token && miSuscripcion && (
-        <div style={{
-          maxWidth: "800px", margin: "0 auto 40px auto", padding: "20px", 
+        <div className="w-full mx-auto" style={{
+          maxWidth: "800px", marginBottom: "40px", padding: "20px", 
           backgroundColor: miSuscripcion.plan.toUpperCase() === 'GRATIS' ? "#f3f4f6" : "#eff6ff",
           border: miSuscripcion.plan.toUpperCase() === 'GRATIS' ? "1px solid #d1d5db" : "2px solid #3b82f6",
-          borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center"
+          borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center",
+          flexWrap: "wrap", gap: "10px"
         }}>
           <div>
             <h3 style={{fontSize: "20px", fontWeight: "bold", color: "#1f2937", margin: 0}}>
@@ -247,23 +247,22 @@ const Planes = () => {
           <h2 style={{textAlign: "center", fontSize: "28px", fontWeight: "700", color: "#374151", marginBottom: "30px", marginTop: "20px"}}>
             🏢 Para Empresas
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
             {renderTarjetas(planesEmpresa)}
           </div>
 
           <h2 style={{textAlign: "center", fontSize: "28px", fontWeight: "700", color: "#374151", marginBottom: "30px", marginTop: "80px"}}>
             👨‍💻 Para Aspirantes
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
             {renderTarjetas(planesAspirante)}
           </div>
         </>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
           {renderTarjetas(userType === "empresa" ? planesEmpresa : planesAspirante)}
         </div>
       )}
-
     </div>
   );
 };
