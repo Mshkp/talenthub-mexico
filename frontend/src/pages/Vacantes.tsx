@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { showError } from '../utils/alerts'; // IMPORTACIÓN NUEVA
 
 interface Vacante {
   id: number;
@@ -32,7 +33,7 @@ const Vacantes: React.FC = () => {
         setVacantesFiltradas(response.data);
         setLoading(false);
       } catch (error) {
-        console.error('Error al cargar vacantes:', error);
+        showError('No se pudieron cargar las vacantes. Revisa tu conexión.'); // ALERTA NUEVA
         setLoading(false);
       }
     };

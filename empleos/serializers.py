@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Usuario, Empresa, Vacante, Aplicacion
 from .models import Plan, Suscripcion, Notificacion
+from .models import Aspirante
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -45,3 +46,11 @@ class NotificacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notificacion
         fields = '__all__'
+
+
+
+class AspiranteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Aspirante
+        fields = '__all__'
+        read_only_fields = ['usuario']

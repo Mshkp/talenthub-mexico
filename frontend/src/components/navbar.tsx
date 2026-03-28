@@ -18,27 +18,43 @@ const Navbar: React.FC = () => {
   // Si estamos en Login o Register, ocultamos el Navbar entero para que se vea más limpio
   if (isAuthPage) return null;
 
+  // LÓGICA DEL LOGO INTELIGENTE: Decide a dónde te lleva el logo según quién eres
+  let rutaLogo = "/";
+  if (token) {
+    // La Empresa va a su creador, los demás (Aspirantes y Validador) van al muro público
+    rutaLogo = tipo === "empresa" ? "/dashboard" : "/vacantes";
+  }
+  
+
   return (
     <nav className="bg-white shadow-md px-8 py-4 flex justify-between items-center">
-      <Link to="/" className="text-2xl font-bold text-talenthub-blue">
+      
+      {/* AQUÍ APLICAMOS LA RUTA INTELIGENTE */}
+      <Link to={rutaLogo} className="text-2xl font-bold text-talenthub-blue">
         TalentHub México
       </Link>
 
       <div className="flex gap-4 items-center">
         
         {/* Vacantes: Se oculta en el Index. Solo lo ven Aspirantes o visitantes en otras páginas */}
-        {!isHome && tipo !== "empresa" && (
+        {!isHome && tipo !== "empresa" && tipo !== "validador" && (
           <Link to="/vacantes" className="text-gray-700 hover:text-blue-600 font-medium">
             Vacantes
           </Link>
         )}
 
-        {/* Mis Postulaciones: Solo Aspirantes logueados */}
+        {/* Solo Aspirantes logueados */}
         {tipo === "aspirante" && (
-          <Link to="/mis-aplicaciones" className="text-gray-700 hover:text-blue-600 font-medium">
-            Mis Postulaciones
-          </Link>
+          <>
+            <Link to="/mi-perfil" className="text-gray-700 hover:text-blue-600 font-medium">
+              Mi Perfil
+            </Link>
+            <Link to="/mis-aplicaciones" className="text-gray-700 hover:text-blue-600 font-medium">
+              Mis Postulaciones
+            </Link>
+          </>
         )}
+
 
         {/* Dashboard: Solo Empresas logueadas */}
         {tipo === "empresa" && (
@@ -52,8 +68,15 @@ const Navbar: React.FC = () => {
           </>
         )}
 
-        {/* Planes: Se oculta en el Index */}
-        {!isHome && (
+        {/* Panel de Validador: Solo Validadores */}
+        {tipo === "validador" && (
+          <Link to="/validador" className="text-red-600 font-bold hover:text-red-800 transition">
+            🛡️ Panel de Auditoría
+          </Link>
+        )}
+
+        {/* Planes: Se oculta en el Index y para el Validador */}
+        {!isHome && tipo !== "validador" && (
           <Link to="/planes" className="text-gray-700 hover:text-blue-600 font-medium">
             Planes
           </Link>

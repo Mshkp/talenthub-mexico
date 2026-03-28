@@ -6,6 +6,7 @@ class Usuario(AbstractUser):
     TIPO_USUARIO = (
         ('aspirante', 'Aspirante'),
         ('empresa', 'Empresa'),
+        ('validador', 'Validador'), # <--- ¡NUEVO ROL AGREGADO!
     )
     tipo = models.CharField(max_length=20, choices=TIPO_USUARIO)
     telefono = models.CharField(max_length=15, blank=True)
@@ -29,11 +30,41 @@ class Empresa(models.Model):
     def __str__(self):
         return self.nombre_empresa
 
+
+class Aspirante(models.Model):
+    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='perfil_aspirante')
+    profesion = models.CharField(max_length=150, blank=True, null=True, help_text="Ej. Desarrollador Frontend, Data Scientist")
+    experiencia_resumen = models.TextField(blank=True, null=True)
+    
+    # Activos profesionales
+    cv = models.FileField(upload_to='cvs/', blank=True, null=True)
+    foto = models.FileField(upload_to='fotos/', blank=True, null=True)
+    
+    # Aquí cubrimos el punto 3.3 (Competencias y Stack)
+    habilidades = models.JSONField(default=list, blank=True, help_text="Lista de tecnologías que domina")
+    
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'aspirantes'
+
+    def __str__(self):
+        return f"Perfil de {self.usuario.username}"
+
+
+
 class Vacante(models.Model):
     MODALIDAD_CHOICES = (
         ('remoto', 'Remoto'),
         ('presencial', 'Presencial'),
         ('hibrido', 'Híbrido'),
+    )
+    
+    # <--- NUEVOS ESTADOS DE VALIDACIÓN --->
+    ESTADO_VALIDACION_CHOICES = (
+        ('pendiente', 'Pendiente de Revisión'),
+        ('aprobada', 'Aprobada'),
+        ('rechazada', 'Rechazada'),
     )
     
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='vacantes')
@@ -44,7 +75,11 @@ class Vacante(models.Model):
     salario_max = models.DecimalField(max_digits=10, decimal_places=2)
     ubicacion = models.CharField(max_length=200)
     modalidad = models.CharField(max_length=20, choices=MODALIDAD_CHOICES)
-    activa = models.BooleanField(default=True)
+    
+    # La vacante nace apagada y en estado 'pendiente' por defecto
+    activa = models.BooleanField(default=False) 
+    estado_validacion = models.CharField(max_length=20, choices=ESTADO_VALIDACION_CHOICES, default='pendiente')
+    
     fecha_publicacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
@@ -53,7 +88,8 @@ class Vacante(models.Model):
         ordering = ['-fecha_publicacion']
     
     def __str__(self):
-        return f"{self.titulo} - {self.empresa.nombre_empresa}"
+        return f"{self.titulo} - {self.empresa.nombre_empresa} ({self.estado_validacion})"
+    
 
 class Aplicacion(models.Model):
     ESTADO_CHOICES = (
@@ -125,3 +161,14 @@ class Notificacion(models.Model):
 
     def __str__(self):
         return f"Notificación para {self.usuario.username}"
+
+
+class Tecnologia(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tecnologias'
+
+    def __str__(self):
+        return self.nombre
