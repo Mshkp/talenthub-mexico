@@ -4,6 +4,7 @@ import axios from "axios";
 import api from '../services/api'; 
 import { showSuccess, showError, showConfirm } from '../utils/alerts';
 
+
 interface Plan {
   id: number;
   nombre: string;
@@ -35,7 +36,7 @@ const Planes = () => {
 
   const cargarPlanes = async () => {
     try {
-      const res = await axios.get("http://127.0.0.1:8000/api/planes/");
+      const res = await api.get('/planes/');
       setPlanes(res.data);
     } catch (error) {
       console.error(error);

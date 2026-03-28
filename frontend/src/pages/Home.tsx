@@ -13,20 +13,23 @@ const Home: React.FC = () => {
           <p className="text-xl text-blue-100 mb-8">
             Encuentra oportunidades en las mejores empresas de TI en México
           </p>
-          <div className="space-x-4">
+          
+          {/* EL FIX: Contenedor flex responsivo para los botones */}
+          <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4 w-full max-w-xs mx-auto sm:max-w-none">
             <Link
               to="/vacantes"
-              className="bg-white text-talenthub-blue px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition inline-block"
+              className="w-full sm:w-auto bg-white text-talenthub-blue px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition text-center"
             >
               Ver Vacantes
             </Link>
             <Link
               to="/planes"
-              className="bg-orange-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-orange-600 transition inline-block"
+              className="w-full sm:w-auto bg-orange-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-orange-600 transition text-center"
             >
               Publicar Vacante
             </Link>
           </div>
+          
         </div>
       </div>
 

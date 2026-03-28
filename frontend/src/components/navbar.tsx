@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import api from "../services/api";
-import { Bell, Menu, X } from "lucide-react"; // <-- IMPORTANTE: Agregamos Menu y X
+import { Bell, Menu, X } from "lucide-react";
+
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -44,9 +45,9 @@ const Navbar: React.FC = () => {
   }
 
   return (
-    // relative z-50 es clave para que el menú desplegable quede por encima del contenido de tu página
     <nav className="bg-white shadow-md relative z-50">
-      <div className="px-6 md:px-8 py-4 flex justify-between items-center">
+      {/* Añadimos h-full y garantizamos que el flex alinee al centro */}
+      <div className="px-6 md:px-8 py-4 flex justify-between items-center md:h-20">
         
         <Link to={rutaLogo} className="text-2xl font-bold text-talenthub-blue">
           TalentHub México
@@ -62,14 +63,14 @@ const Navbar: React.FC = () => {
 
         {/* CONTENEDOR CENTRAL DE ENLACES (Magia Responsiva) */}
         <div
-          // Si está abierto en móvil, mostramos columna absoluta. Si es desktop (md:), mostramos fila normal.
           className={`${
             isMobileMenuOpen
               ? "flex flex-col absolute top-full left-0 w-full bg-white shadow-xl py-6 px-8 gap-6 border-t border-gray-100"
               : "hidden"
-          } md:flex md:static md:flex-row md:shadow-none md:py-0 md:px-0 md:gap-4 items-center`}
-          onClick={() => setIsMobileMenuOpen(false)} // UX Pro: Cierra el menú al hacer clic en cualquier lugar dentro de él
+          } md:flex md:static md:flex-row md:shadow-none md:py-0 md:px-0 md:gap-6 md:items-center md:h-full`}
+          onClick={() => setIsMobileMenuOpen(false)}
         >
+
           
           {!isHome && tipo !== "empresa" && tipo !== "validador" && (
             <Link to="/vacantes" className="text-gray-700 hover:text-blue-600 font-medium">
@@ -110,14 +111,13 @@ const Navbar: React.FC = () => {
               Planes
             </Link>
           )}
-
           {/* CONTROLES DE SESIÓN Y NOTIFICACIONES */}
           {!token ? (
-            <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
               <Link to="/login" className="text-gray-700 hover:text-blue-600 font-medium text-center md:text-left">
                 Iniciar Sesión
               </Link>
-              <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition text-center">
+              <Link to="/register" className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition text-center">
                 Registrarse
               </Link>
             </div>
