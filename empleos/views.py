@@ -190,22 +190,24 @@ class AplicacionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        usuario_id = self.request.query_params.get('usuario')
-        empresa_id = self.request.query_params.get('empresa')
+        usuario = self.request.user
 
-        # Si pregunta un aspirante, le damos solo sus postulaciones
-        if usuario_id:
-            return queryset.filter(usuario_id=usuario_id)
+        # 1. Si es aspirante, NUNCA puede ver postulaciones de otros.
+        if usuario.tipo == 'aspirante':
+            return Aplicacion.objects.filter(usuario=usuario)
+        
+        # 2. Si es empresa, SOLO puede ver postulaciones a SUS vacantes.
+        elif usuario.tipo == 'empresa':
+            # Buscamos qué vacantes le pertenecen a esta empresa
+            vacantes_empresa = Vacante.objects.filter(empresa__usuario=usuario)
+            return Aplicacion.objects.filter(vacante__in=vacantes_empresa)
             
-        # Si pregunta una empresa, le damos solo las de sus vacantes
-        if empresa_id:
-            return queryset.filter(vacante__empresa_id=empresa_id)
-
-        return queryset
-
-
-
+        # 3. Si es validador o admin, puede ver todo
+        elif usuario.tipo == 'validador' or usuario.is_superuser:
+            return Aplicacion.objects.all()
+            
+        # Por seguridad, si el rol no coincide, no se devuelve nada
+        return Aplicacion.objects.none()
 
     def create(self, request, *args, **kwargs):
         usuario = request.user
@@ -286,9 +288,6 @@ class AplicacionViewSet(viewsets.ModelViewSet):
                 )
 
         return response
-
-
-
 
 # ==============================
 # USER INFO
