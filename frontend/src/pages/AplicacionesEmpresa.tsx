@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { showSuccess, showError } from '../utils/alerts'; // IMPORTACIÓN NUEVA
 
 interface Aplicacion {
   id: number;
@@ -20,18 +21,17 @@ const AplicacionesEmpresa: React.FC = () => {
   const [filtroEstado, setFiltroEstado] = useState('');
 
   useEffect(() => {
-    // ¡CORREGIDO! Ahora busca "token"
     const token = localStorage.getItem('token');
     const userTipo = localStorage.getItem('user_tipo');
     
     if (!token) {
-      alert('Debes iniciar sesión para ver tus aplicaciones');
+      showError('Debes iniciar sesión para ver tus aplicaciones'); // ALERTA NUEVA
       navigate('/login');
       return;
     }
     
     if (userTipo !== 'empresa') {
-      alert('Solo las empresas pueden acceder a este panel');
+      showError('Solo las empresas pueden acceder a este panel'); // ALERTA NUEVA
       navigate('/vacantes');
       return;
     }
@@ -42,13 +42,10 @@ const AplicacionesEmpresa: React.FC = () => {
   const fetchAplicaciones = async () => {
     try {
       const userId = localStorage.getItem('user_id');
-      
-      // 1. Buscamos qué empresa es la que inició sesión
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
-      
+
       if (empresaResponse.data && empresaResponse.data.length > 0) {
         const empresaId = empresaResponse.data[0].id;
-        // 2. Pedimos las aplicaciones exclusivas de esta empresa
         const response = await api.get(`/aplicaciones/?empresa=${empresaId}`);
         setAplicaciones(response.data);
       } else {
@@ -61,14 +58,13 @@ const AplicacionesEmpresa: React.FC = () => {
     }
   };
 
-
   const cambiarEstado = async (id: number, nuevoEstado: string) => {
     try {
       await api.patch(`/aplicaciones/${id}/`, { estado: nuevoEstado });
-      alert(`Estado cambiado a: ${nuevoEstado}`);
+      showSuccess(`Estado cambiado a: ${nuevoEstado.toUpperCase()}`); // ALERTA NUEVA
       fetchAplicaciones();
     } catch (error) {
-      alert('Error al cambiar estado');
+      showError('Error al cambiar el estado del candidato'); // ALERTA NUEVA
     }
   };
 
@@ -173,7 +169,7 @@ const AplicacionesEmpresa: React.FC = () => {
                     {aplicacion.usuario_nombre}
                   </h3>
                   
-                  {/* BOTÓN CV: Usa el CV del usuario, o un PDF de prueba si está vacío */}
+                  {/* BOTÓN CV */}
                   <a
                     href={aplicacion.cv_url || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"}
                     target="_blank"

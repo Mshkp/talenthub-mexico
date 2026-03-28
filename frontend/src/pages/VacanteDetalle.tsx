@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { showSuccess, showError } from '../utils/alerts'; // IMPORTACIÓN NUEVA
 
 interface Vacante {
   id: number;
@@ -22,6 +23,11 @@ const VacanteDetalle: React.FC = () => {
   const [vacante, setVacante] = useState<Vacante | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Agregamos esto para saber quién está viendo la vacante
+  const userTipo = localStorage.getItem('user_tipo'); 
+  const rutaRegreso = userTipo === 'empresa' ? '/dashboard' : '/vacantes';
+  const textoRegreso = userTipo === 'empresa' ? '← Volver al Dashboard' : '← Volver a vacantes';
+
   useEffect(() => {
     const fetchVacante = async () => {
       try {
@@ -39,10 +45,10 @@ const VacanteDetalle: React.FC = () => {
 
   const handleAplicar = async () => {
     const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('user_id'); // Rescatamos tu ID
+    const userId = localStorage.getItem('user_id');
     
     if (!token || !userId) {
-      alert('Debes iniciar sesión para aplicar');
+      showError('Debes iniciar sesión para aplicar'); // ALERTA NUEVA
       navigate('/login');
       return;
     }
@@ -50,16 +56,23 @@ const VacanteDetalle: React.FC = () => {
     try {
       await api.post('/aplicaciones/', {
         vacante: id,
-        usuario: userId, // <-- ¡EL ESLABÓN PERDIDO! Ahora Django sabe quién eres
+        usuario: userId,
         estado: 'pendiente'
       });
-      alert('¡Aplicación enviada exitosamente!');
+      showSuccess('¡Aplicación enviada exitosamente!', 'Tu CV guardado fue adjuntado automáticamente.'); 
       navigate('/mis-aplicaciones');
     } catch (error: any) {
-      if (error.response?.status === 400) {
-        alert('Ya aplicaste a esta vacante o faltan datos');
+      // --- NUEVA LÓGICA DE ERRORES ---
+      const errorData = error.response?.data;
+      
+      if (errorData?.error === 'CV_MISSING') {
+        // Si el backend dice que falta el CV, lo mandamos a su perfil
+        showError('No tienes un CV guardado', 'Por favor sube tu CV en la sección "Mi Perfil" antes de aplicar.');
+        navigate('/mi-perfil');
+      } else if (error.response?.status === 400) {
+        showError(errorData?.detail || 'Ya aplicaste a esta vacante o faltan datos', '¡Ojo!'); 
       } else {
-        alert('Error al aplicar. Intenta de nuevo.');
+        showError('Error al aplicar. Intenta de nuevo.'); 
       }
     }
   };
@@ -83,9 +96,10 @@ const VacanteDetalle: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="max-w-4xl w-full mx-auto px-4 py-8 flex-grow">
-        <Link to="/vacantes" className="text-talenthub-blue hover:underline mb-4 inline-block font-semibold">
-          ← Volver a vacantes
+        <Link to={rutaRegreso} className="text-talenthub-blue hover:underline mb-4 inline-block font-semibold">
+          {textoRegreso}
         </Link>
+
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           {/* Header */}

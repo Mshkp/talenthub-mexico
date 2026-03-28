@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { showSuccess } from '../utils/alerts';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -26,13 +27,14 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
+    
     if (formData.password !== formData.password2) {
       setError('Las contraseñas no coinciden');
       return;
     }
 
     setLoading(true);
+    
     try {
       await api.post('/register/', {
         username: formData.username,
@@ -42,7 +44,8 @@ const Register: React.FC = () => {
         telefono: formData.telefono,
         nombre_empresa: formData.nombre_empresa
       });
-      alert('¡Registro exitoso! Ahora puedes iniciar sesión');
+      
+      showSuccess('¡Registro exitoso!', 'Ahora puedes iniciar sesión');
       navigate('/login');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al registrarse');
@@ -66,16 +69,8 @@ const Register: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Tipo de cuenta
-            </label>
-            <select
-              name="tipo"
-              value={formData.tipo}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              required
-            >
+            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Tipo de cuenta</label>
+            <select name="tipo" value={formData.tipo} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required>
               <option value="aspirante">Aspirante (Busco empleo)</option>
               <option value="empresa">Empresa (Publico vacantes)</option>
             </select>
@@ -83,105 +78,44 @@ const Register: React.FC = () => {
 
           {formData.tipo === 'empresa' && (
             <div>
-              <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-                Nombre de la empresa *
-              </label>
-              <input
-                type="text"
-                name="nombre_empresa"
-                value={formData.nombre_empresa}
-                onChange={handleChange}
-                placeholder="Tech Corp México"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-                required={formData.tipo === 'empresa'}
-              />
+              <label className="block text-sm font-semibold text-talenthub-gray mb-1">Nombre de la empresa *</label>
+              <input type="text" name="nombre_empresa" value={formData.nombre_empresa} onChange={handleChange} placeholder="Tech Corp México" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required={formData.tipo === 'empresa'} />
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Nombre de usuario
-            </label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              required
-            />
+            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Nombre de usuario</label>
+            <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              required
-            />
+            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Email</label>
+            <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Teléfono
-            </label>
-            <input
-              type="tel"
-              name="telefono"
-              value={formData.telefono}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              placeholder="5512345678"
-            />
+            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Teléfono</label>
+            <input type="tel" name="telefono" value={formData.telefono} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" placeholder="5512345678" />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              required
-            />
+            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Contraseña</label>
+            <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">
-              Confirmar contraseña
-            </label>
-            <input
-              type="password"
-              name="password2"
-              value={formData.password2}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition"
-              required
-            />
+            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Confirmar contraseña</label>
+            <input type="password" name="password2" value={formData.password2} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400">
             {loading ? 'Registrando...' : 'Crear cuenta'}
           </button>
         </form>
 
         <p className="text-center text-gray-600 mt-6">
           ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className="text-talenthub-blue font-semibold hover:underline">
-            Inicia sesión
-          </Link>
+          <Link to="/login" className="text-talenthub-blue font-semibold hover:underline">Inicia sesión</Link>
         </p>
       </div>
     </div>
