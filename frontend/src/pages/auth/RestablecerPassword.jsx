@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Lock, ShieldCheck, Loader2,} from 'lucide-react';
+import { Lock, ShieldCheck, Loader2 } from 'lucide-react';
 import PasswordValidator from '../../components/PasswordValidator';
 import api from '../../services/api';
 import { showSuccess, showError } from '../../utils/alerts';
@@ -12,78 +12,65 @@ export default function RestablecerPassword() {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [mensaje, setMensaje] = useState('');
-  const [esError, setEsError] = useState(false);
   const [cargando, setCargando] = useState(false);
-  
-  // NUEVO ESTADO: Controla si la contraseña pasó la validación del componente
   const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMensaje('');
-    setEsError(false);
 
-    // Validación de seguridad (S-SDLC) antes de enviar al backend
+    // 1. Validación de políticas (S-SDLC)
     if (!isPasswordValid) {
-      setEsError(true);
-      setMensaje('La contraseña no cumple con las políticas de seguridad mínimas.');
+      showError('La contraseña no cumple con los requisitos de seguridad.');
       return;
     }
 
+    // 2. Validación de coincidencia
     if (password !== confirmPassword) {
-      setEsError(true);
-      setMensaje('Anomalía: Las contraseñas no coinciden.');
+      showError('Las contraseñas no coinciden.');
       return;
     }
 
     setCargando(true);
 
     try {
-      const response = await api.post('/confirmar-password/', { 
+      // 3. Petición al API
+      await api.post('/confirmar-password/', { 
         uid, 
         token, 
         new_password: password 
       });
 
-      // 1. Lanzamos tu alerta bonita (que ya configuramos para que espere 2 segundos)
-      await showSuccess('¡Contraseña actualizada!', 'Redirigiendo al puerto de acceso...');
+      // 4. Feedback visual con pausa (Configurado en alerts.ts)
+      await showSuccess('¡Contraseña actualizada!', 'Redirigiendo al login...');
       
-      // 2. Redirigimos al login inmediatamente después de que la alerta termine
+      // 5. Redirección
       navigate('/login');
 
     } catch (error) {
-      // Mostramos el error con tu alerta en lugar del texto plano
-      if (error.response && error.response.data && error.response.data.error) {
-        showError(error.response.data.error);
-      } else {
-        showError('Error crítico de conexión con el servidor.');
-      }
+      const msg = error.response?.data?.error || 'Error crítico de conexión.';
+      showError(msg);
     } finally {
       setCargando(false);
     }
   };
 
-
-
-// ESTILOS TIPO TALENTHUB (Tarjetas clean con acento de color)
   const styles = {
     wrapper: {
       minHeight: '80vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#F9FAFB', // Fondo claro
+      background: '#F9FAFB',
       padding: '20px'
     },
     card: {
       background: 'white',
-      borderTop: '4px solid #3b82f6', // ACENTO AZUL (Como tu tarjeta de usuarios)
+      borderTop: '4px solid #3b82f6',
       borderRadius: '12px',
       width: '100%',
       maxWidth: '440px',
       padding: '40px',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.05)', // Sombra suave
+      boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
       boxSizing: 'border-box'
     },
     header: {
@@ -121,12 +108,11 @@ export default function RestablecerPassword() {
       borderRadius: '8px',
       fontSize: '0.95rem',
       boxSizing: 'border-box',
-      outline: 'none',
-      transition: 'border-color 0.2s'
+      outline: 'none'
     },
     button: {
       width: '100%',
-      background: '#0f172a', // BOTÓN OSCURO
+      background: '#0f172a',
       color: 'white',
       fontWeight: '600',
       fontSize: '1rem',
@@ -134,7 +120,6 @@ export default function RestablecerPassword() {
       border: 'none',
       borderRadius: '8px',
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
@@ -143,35 +128,8 @@ export default function RestablecerPassword() {
     buttonDisabled: {
       opacity: '0.7',
       cursor: 'not-allowed'
-    },
-    messageBox: {
-      marginTop: '24px',
-      padding: '14px',
-      borderRadius: '8px',
-      fontSize: '0.9rem',
-      display: 'flex',
-      alignItems: 'start',
-      gap: '10px',
-      boxSizing: 'border-box'
-    },
-    successMsg: {
-      background: 'rgba(16, 185, 129, 0.1)',
-      border: '1px solid #10b981',
-      color: '#065f46'
-    },
-    errorMsg: {
-      background: 'rgba(239, 68, 68, 0.1)',
-      border: '1px solid #ef4444',
-      color: '#991b1b'
-    },
-    spin: {
-      animation: 'spin 1s linear infinite'
     }
   };
-
-
-
-
 
   return (
     <div style={styles.wrapper}>
@@ -180,8 +138,8 @@ export default function RestablecerPassword() {
       <div style={styles.card}>
         <div style={styles.header}>
           <ShieldCheck size={44} color="#3b82f6" />
-          <h2 style={styles.title}>Establecer Nueva Contraseña</h2>
-          <p style={styles.subtitle}>Define tus nuevas credenciales de acceso</p>
+          <h2 style={styles.title}>Nueva Contraseña</h2>
+          <p style={styles.subtitle}>Define tus credenciales de acceso</p>
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -197,7 +155,6 @@ export default function RestablecerPassword() {
             />
           </div>
 
-          {/* AQUÍ VA EL COMPONENTE DE VALIDACIÓN */}
           {password.length > 0 && (
             <PasswordValidator 
               password={password} 
@@ -217,22 +174,18 @@ export default function RestablecerPassword() {
             />
           </div>
 
-
-          {/* El botón ahora solo se deshabilita si está cargando */}
           <button 
             type="submit" 
             style={{...styles.button, ...(cargando ? styles.buttonDisabled : {})}} 
             disabled={cargando}
           >
             {cargando ? (
-              <><Loader2 style={styles.spin} size={20} /> ACTUALIZANDO...</>
+              <><Loader2 style={{ animation: 'spin 1s linear infinite' }} size={20} /> ACTUALIZANDO...</>
             ) : (
               'ACTUALIZAR CONTRASEÑA'
             )}
           </button>
         </form>
-
-        {/* ... (Mensajes de error/éxito) ... */}
       </div>
     </div>
   );
