@@ -16,21 +16,26 @@ export default function SolicitarRecuperacion() {
 
     try {
       const response = await api.post('/recuperar-password/', { email });
-
-      const data = await response.json();
       
-      if (!response.ok) {
-        setEsError(true);
-      }
-      setMensaje(data.mensaje || data.error);
+      // Axios guarda el éxito en response.data
+      setEsError(false);
+      setMensaje(response.data.mensaje || "¡Enlace enviado con éxito!");
 
     } catch (error) {
       setEsError(true);
-      setMensaje('Error de conexión con el servidor.');
+      
+      // Si el backend mandó un error específico (ej. "El correo no existe")
+      if (error.response && error.response.data && error.response.data.error) {
+        setMensaje(error.response.data.error);
+      } else {
+        // Si de plano se cayó el internet o el servidor
+        setMensaje('Error de conexión con el servidor.');
+      }
     } finally {
       setCargando(false);
     }
   };
+
 
   // ESTILOS TIPO TALENTHUB (Tarjetas clean con acento de color)
   const styles = {
