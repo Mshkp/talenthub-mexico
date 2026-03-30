@@ -1,6 +1,6 @@
 # 🚀 TalentHub México
 
-🌍 Choose your language: [English](#english-version) | [Español](#versión-en-español)
+🌍 Choose your language: [English](#english-version) | [Español](#version-en-espanol)
 
 ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
 ![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white)
@@ -117,7 +117,7 @@ This project was planned, designed, and developed collaboratively by:
 ---
 ---
 
-<a name="versión-en-español"></a>
+<a name="version-en-espanol"></a>
 ## 🇲🇽 Versión en Español
 
 **TalentHub México** es un observatorio y portal de empleos especializado en el sector de Tecnologías de la Información (TI). Conecta a empresas con los mejores talentos del país mediante una plataforma segura, intuitiva y basada en roles.
