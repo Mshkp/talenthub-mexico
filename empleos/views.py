@@ -765,7 +765,8 @@ def solicitar_recuperacion_password(request):
     # 2. Armamos el link de recuperación
     # OJO: Este link apunta a tu REACT (por ahora localhost:3000 o 5173). 
     # Cuando lo subas a producción, CAMBIAR A por el dominio de Vercel.
-    frontend_url = "http://localhost:3000/restablecer-password" 
+    
+    frontend_url = "https://talent-hub.me/restablecer-password" 
     enlace_recuperacion = f"{frontend_url}/{uid}/{token}/"
     
     # 3. Redactamos el correo

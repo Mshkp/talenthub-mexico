@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, KeyRound, Loader2, Info, AlertTriangle } from 'lucide-react';
+import api from '../../services/api';
 
 export default function SolicitarRecuperacion() {
   const [email, setEmail] = useState('');
@@ -14,11 +15,7 @@ export default function SolicitarRecuperacion() {
     setEsError(false);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/recuperar-password/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
+      const response = await api.post('/recuperar-password/', { email });
 
       const data = await response.json();
       
@@ -175,6 +172,7 @@ export default function SolicitarRecuperacion() {
             )}
           </button>
         </form>
+
 
         {mensaje && (
           <div style={{...styles.messageBox, ...(esError ? styles.errorMsg : styles.successMsg)}}>
