@@ -15,6 +15,9 @@ export const showSuccess = (texto: string, titulo = '¡Éxito!') => {
     icon: 'success',
     title: titulo,
     text: texto,
+    timer: 2000, // <-- Cierra automáticamente después de 2 segundos
+    timerProgressBar: true, // <-- Opcional: muestra una barrita de tiempo cargando
+    showConfirmButton: false // <-- Oculta el botón para que actúe como notificación
   });
 };
 

@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Lock, ShieldCheck, Loader2,} from 'lucide-react';
 import PasswordValidator from '../../components/PasswordValidator';
 import api from '../../services/api';
+import { showSuccess, showError } from '../../utils/alerts';
 
 export default function RestablecerPassword() {
   const { uid, token } = useParams();
@@ -39,24 +40,24 @@ export default function RestablecerPassword() {
     setCargando(true);
 
     try {
-      // Usamos tu instancia de API oficial, adiós a localhost
       const response = await api.post('/confirmar-password/', { 
         uid, 
         token, 
         new_password: password 
       });
 
-      setEsError(false);
-      setMensaje('¡Contraseña actualizada! Redirigiendo al puerto de acceso...');
-      setTimeout(() => navigate('/login'), 3000);
+      // 1. Lanzamos tu alerta bonita (que ya configuramos para que espere 2 segundos)
+      await showSuccess('¡Contraseña actualizada!', 'Redirigiendo al puerto de acceso...');
+      
+      // 2. Redirigimos al login inmediatamente después de que la alerta termine
+      navigate('/login');
 
     } catch (error) {
-      setEsError(true);
-      // Extraemos el error limpio que nos mande Django
+      // Mostramos el error con tu alerta en lugar del texto plano
       if (error.response && error.response.data && error.response.data.error) {
-        setMensaje(error.response.data.error);
+        showError(error.response.data.error);
       } else {
-        setMensaje('Error crítico de conexión con el servidor.');
+        showError('Error crítico de conexión con el servidor.');
       }
     } finally {
       setCargando(false);
