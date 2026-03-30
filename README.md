@@ -9,11 +9,15 @@
 ![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Azure](https://img.shields.io/badge/azure-%230072C6.svg?style=for-the-badge&logo=microsoftazure&logoColor=white)
 
+---
+
+<a name="english-version"></a>
+## 🇺🇸 English Version
+
 **TalentHub México** is an observatory and job portal specialized in the Information Technology (IT) sector. It connects companies with the best talent in the country through a secure, intuitive, and role-based platform.
 
 ---
 
-<a name="english-version"></a>
 ## ✨ Key Features
 
 The system is designed with a **3-Role Architecture**, each with its own dashboard and specific permissions:
