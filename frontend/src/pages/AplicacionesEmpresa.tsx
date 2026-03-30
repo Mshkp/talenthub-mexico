@@ -165,9 +165,11 @@ const AplicacionesEmpresa: React.FC = () => {
         <div className="space-y-4">
           {aplicacionesFiltradas.map((aplicacion) => (
             <div key={aplicacion.id} className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${getEstadoColor(aplicacion.estado)}`}>
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-talenthub-gray mb-1">
+              
+              {/* Contenedor Superior: Responsivo (Apilado en móvil, horizontal en PC) */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div className="flex-1 w-full">
+                  <h3 className="text-2xl font-bold text-talenthub-gray mb-1 break-words">
                     {aplicacion.usuario_nombre}
                   </h3>
                   
@@ -198,7 +200,8 @@ const AplicacionesEmpresa: React.FC = () => {
                     })}
                   </p>
                 </div>
-                <span className={`px-4 py-2 rounded-full text-sm font-bold border-2 shadow-sm ${getEstadoColor(aplicacion.estado)}`}>
+                
+                <span className={`px-4 py-2 rounded-full text-sm font-bold border-2 shadow-sm whitespace-nowrap ${getEstadoColor(aplicacion.estado)}`}>
                   {aplicacion.estado.toUpperCase()}
                 </span>
               </div>
@@ -220,26 +223,26 @@ const AplicacionesEmpresa: React.FC = () => {
                 </div>
               )}
 
-              {/* Acciones */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t mt-4">
+              {/* Acciones: Botones Responsivos (Ancho completo en móvil) */}
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t mt-4">
                 <button
                   onClick={() => cambiarEstado(aplicacion.id, 'revisado')}
                   disabled={aplicacion.estado === 'revisado'}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
+                  className="w-full sm:w-auto flex-1 bg-blue-500 text-white px-4 py-3 sm:py-2 rounded-lg font-semibold hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm text-center"
                 >
                   Marcar como Revisado
                 </button>
                 <button
                   onClick={() => cambiarEstado(aplicacion.id, 'aceptado')}
                   disabled={aplicacion.estado === 'aceptado'}
-                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
+                  className="w-full sm:w-auto flex-1 bg-green-500 text-white px-4 py-3 sm:py-2 rounded-lg font-semibold hover:bg-green-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm text-center"
                 >
                   ✓ Aceptar
                 </button>
                 <button
                   onClick={() => cambiarEstado(aplicacion.id, 'rechazado')}
                   disabled={aplicacion.estado === 'rechazado'}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
+                  className="w-full sm:w-auto flex-1 bg-red-500 text-white px-4 py-3 sm:py-2 rounded-lg font-semibold hover:bg-red-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm text-center"
                 >
                   ✗ Rechazar
                 </button>
@@ -270,7 +273,6 @@ const AplicacionesEmpresa: React.FC = () => {
           </div>
         )}
       </div>
-
     </div>
   );
 };

@@ -242,14 +242,15 @@ const DashboardValidador: React.FC = () => {
 
         {/* PESTAÑA 2: USUARIOS */}
         {activeTab === 'usuarios' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            <table className="w-full text-left border-collapse">
+          <div className="bg-white rounded-xl shadow-lg overflow-x-auto border border-gray-200">
+            {/* AGREGAMOS min-w-[800px] AQUÍ */}
+            <table className="min-w-[800px] w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                  <th className="py-4 px-6 font-bold">Usuario</th>
-                  <th className="py-4 px-6 font-bold">Rol</th>
-                  <th className="py-4 px-6 font-bold">Estado</th>
-                  <th className="py-4 px-6 font-bold text-center">Acción</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Usuario</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Rol</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Estado</th>
+                  <th className="py-4 px-6 font-bold text-center whitespace-nowrap">Acción</th>
                 </tr>
               </thead>
               <tbody className="text-gray-600 text-sm font-medium">
@@ -272,15 +273,15 @@ const DashboardValidador: React.FC = () => {
 
         {/* PESTAÑA 3: HISTORIAL */}
         {activeTab === 'historial' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            <table className="w-full text-left border-collapse">
+          <div className="bg-white rounded-xl shadow-lg overflow-x-auto border border-gray-200">
+            <table className="min-w-[900px] w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                  <th className="py-4 px-6 font-bold">Empresa</th>
-                  <th className="py-4 px-6 font-bold">Título de la Vacante</th>
-                  <th className="py-4 px-6 font-bold">Fecha</th>
-                  <th className="py-4 px-6 font-bold">Estado Validador</th>
-                  <th className="py-4 px-6 font-bold text-center">Estatus Empresa</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Empresa</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Título de la Vacante</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Fecha</th>
+                  <th className="py-4 px-6 font-bold whitespace-nowrap">Estado Validador</th>
+                  <th className="py-4 px-6 font-bold text-center whitespace-nowrap">Estatus Empresa</th>
                 </tr>
               </thead>
               <tbody className="text-gray-600 text-sm font-medium">
