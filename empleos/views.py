@@ -784,8 +784,10 @@ def solicitar_recuperacion_password(request):
         )
         return Response({"mensaje": "Si el correo coincide con una cuenta, enviaremos un enlace."}, status=status.HTTP_200_OK)
     except Exception as e:
-        print(f"ERROR DE CORREO: {e}") # <-- Esto nos dirá el problema real en la terminal
-        return Response({"error": "Hubo un problema al enviar el correo desde el servidor."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        print(f"🔥 ERROR AL MANDAR CORREO: {e}") # <-- Agrega este print
+        print(f"🔥 TIPO DE ERROR: {type(e)}")   # <-- Y este
+        return Response({"error": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
 
 @api_view(['POST'])
