@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { showSuccess, showError } from '../utils/alerts'; // IMPORTACIÓN NUEVA
+import { showSuccess, showError } from '../utils/alerts';
 
 interface Vacante {
   id: number;
@@ -23,10 +23,18 @@ const VacanteDetalle: React.FC = () => {
   const [vacante, setVacante] = useState<Vacante | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Agregamos esto para saber quién está viendo la vacante
+  // Lógica mejorada para la ruta de regreso según el rol
   const userTipo = localStorage.getItem('user_tipo'); 
-  const rutaRegreso = userTipo === 'empresa' ? '/dashboard' : '/vacantes';
-  const textoRegreso = userTipo === 'empresa' ? '← Volver al Dashboard' : '← Volver a vacantes';
+  let rutaRegreso = '/vacantes';
+  let textoRegreso = '← Volver a vacantes';
+
+  if (userTipo === 'empresa') {
+    rutaRegreso = '/dashboard';
+    textoRegreso = '← Volver al Dashboard';
+  } else if (userTipo === 'validador') {
+    rutaRegreso = '/validador';
+    textoRegreso = '← Volver al Centro de Validación';
+  }
 
   useEffect(() => {
     const fetchVacante = async () => {
@@ -48,7 +56,7 @@ const VacanteDetalle: React.FC = () => {
     const userId = localStorage.getItem('user_id');
     
     if (!token || !userId) {
-      showError('Debes iniciar sesión para aplicar'); // ALERTA NUEVA
+      showError('Debes iniciar sesión para aplicar');
       navigate('/login');
       return;
     }
@@ -62,11 +70,9 @@ const VacanteDetalle: React.FC = () => {
       showSuccess('¡Aplicación enviada exitosamente!', 'Tu CV guardado fue adjuntado automáticamente.'); 
       navigate('/mis-aplicaciones');
     } catch (error: any) {
-      // --- NUEVA LÓGICA DE ERRORES ---
       const errorData = error.response?.data;
       
       if (errorData?.error === 'CV_MISSING') {
-        // Si el backend dice que falta el CV, lo mandamos a su perfil
         showError('No tienes un CV guardado', 'Por favor sube tu CV en la sección "Mi Perfil" antes de aplicar.');
         navigate('/mi-perfil');
       } else if (error.response?.status === 400) {
@@ -99,7 +105,6 @@ const VacanteDetalle: React.FC = () => {
         <Link to={rutaRegreso} className="text-talenthub-blue hover:underline mb-4 inline-block font-semibold">
           {textoRegreso}
         </Link>
-
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           {/* Header */}
@@ -178,9 +183,9 @@ const VacanteDetalle: React.FC = () => {
             </div>
           </div>
 
-          {/* Botón Aplicar */}
+          {/* Botón Aplicar / Vistas por Rol */}
           <div className="border-t pt-6">
-            {localStorage.getItem('user_tipo') === 'aspirante' ? (
+            {userTipo === 'aspirante' ? (
               <>
                 <button
                   onClick={handleAplicar}
@@ -192,13 +197,22 @@ const VacanteDetalle: React.FC = () => {
                   Al aplicar, tu perfil será enviado directamente a {vacante.empresa_nombre}
                 </p>
               </>
-            ) : localStorage.getItem('user_tipo') === 'empresa' ? (
+            ) : userTipo === 'empresa' ? (
               <div className="bg-blue-50 border-l-4 border-talenthub-blue p-6 rounded">
                 <p className="text-talenthub-gray font-bold text-lg">
                   📋 Esta es una de las vacantes publicadas en la plataforma
                 </p>
                 <p className="text-gray-600 mt-2 font-medium">
                   Como empresa, puedes gestionar tus vacantes desde el <Link to="/dashboard" className="text-talenthub-blue font-bold hover:underline">Dashboard</Link>
+                </p>
+              </div>
+            ) : userTipo === 'validador' ? (
+              <div className="bg-purple-50 border-l-4 border-purple-500 p-6 rounded text-center">
+                <p className="text-purple-800 font-bold text-lg">
+                  🛡️ Vista de Auditoría (Validador)
+                </p>
+                <p className="text-purple-600 mt-2 font-medium">
+                  Estás viendo los detalles de esta vacante como parte de tu revisión de calidad.
                 </p>
               </div>
             ) : (
