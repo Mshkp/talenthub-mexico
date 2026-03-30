@@ -87,7 +87,6 @@ const Dashboard: React.FC = () => {
     try {
       const userId = localStorage.getItem('user_id');
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
-      
       if (!empresaResponse.data || empresaResponse.data.length === 0) {
         showError("Tu usuario no tiene un perfil de Empresa. Por favor, crea una CUENTA NUEVA desde la página de Registro para que se genere correctamente.");
         return;
@@ -100,7 +99,6 @@ const Dashboard: React.FC = () => {
         experiencia: formData.experiencia,
         otros: formData.otros_requisitos
       };
-      
       const dataToSend = {
         titulo: formData.titulo,
         descripcion: formData.descripcion,
@@ -112,7 +110,6 @@ const Dashboard: React.FC = () => {
         activa: editando ? formData.activa : false, 
         empresa: empresaId
       };
-      
       if (editando) {
         await api.put(`/vacantes/${editando}/`, dataToSend);
         showSuccess('Vacante actualizada exitosamente');
@@ -135,7 +132,6 @@ const Dashboard: React.FC = () => {
     const tecnologias = vacante.requisitos?.lenguajes ? vacante.requisitos.lenguajes.join(', ') : '';
     const experiencia = vacante.requisitos?.experiencia || '';
     const otros = vacante.requisitos?.otros || '';
-    
     setFormData({
       titulo: vacante.titulo,
       descripcion: vacante.descripcion,
@@ -148,7 +144,6 @@ const Dashboard: React.FC = () => {
       otros_requisitos: otros,
       activa: vacante.activa
     });
-    
     setEditando(vacante.id);
     setShowForm(true);
   };
@@ -173,7 +168,6 @@ const Dashboard: React.FC = () => {
     try {
       const userId = localStorage.getItem('user_id');
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
-      
       if (empresaResponse.data && empresaResponse.data.length > 0) {
         const empresaId = empresaResponse.data[0].id;
         await api.patch(`/vacantes/${id}/?empresa=${empresaId}`, { activa: true });
@@ -231,6 +225,7 @@ const Dashboard: React.FC = () => {
             <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
               Dashboard - Mis Vacantes
             </h1>
+          
             <p className="text-gray-600">{vacantes.length} vacantes publicadas</p>
           </div>
           <button
@@ -239,7 +234,8 @@ const Dashboard: React.FC = () => {
               setEditando(null);
               limpiarForm();
             }}
-            className="bg-talenthub-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+       
+             className="bg-talenthub-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             {showForm ? 'Cancelar' : '+ Nueva Vacante'}
           </button>
@@ -248,48 +244,57 @@ const Dashboard: React.FC = () => {
         {showForm && (
           <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
             <h2 className="text-2xl font-bold text-talenthub-gray mb-6">
+ 
               {editando ? 'Editar Vacante' : 'Nueva Vacante'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Título del puesto *</label>
+          
                   <input type="text" name="titulo" value={formData.titulo} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Ubicación *</label>
-                  <input type="text" name="ubicacion" value={formData.ubicacion} onChange={handleChange} placeholder="Ciudad de México" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
+                  <input type="text" name="ubicacion" value={formData.ubicacion} 
+ onChange={handleChange} placeholder="Ciudad de México" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción *</label>
-                <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} rows={4} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
+                <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} rows={4} 
+ className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Salario Mínimo (MXN) *</label>
+                 
                   <input type="number" name="salario_min" value={formData.salario_min} onChange={handleChange} placeholder="30000" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Salario Máximo (MXN) *</label>
-                  <input type="number" name="salario_max" value={formData.salario_max} onChange={handleChange} placeholder="50000" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
+                  <input type="number" name="salario_max" value={formData.salario_max} onChange={handleChange} placeholder="50000" className="w-full px-4 
+ py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Modalidad *</label>
                   <select name="modalidad" value={formData.modalidad} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required>
-                    <option value="remoto">Remoto</option>
+       
+                     <option value="remoto">Remoto</option>
                     <option value="presencial">Presencial</option>
                     <option value="hibrido">Híbrido</option>
                   </select>
                 </div>
+          
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Tecnologías requeridas *</label>
                 <input type="text" name="tecnologias" value={formData.tecnologias} onChange={handleChange} placeholder="React, Node.js, Python, PostgreSQL" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
                 <p className="text-xs text-gray-500 mt-1">Separa las tecnologías con comas</p>
+  
               </div>
 
               <div>
@@ -297,9 +302,11 @@ const Dashboard: React.FC = () => {
                 <input type="text" name="experiencia" value={formData.experiencia} onChange={handleChange} placeholder="2-3 años de experiencia" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
               </div>
 
-              <div>
+   
+               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Otros requisitos (opcional)</label>
-                <textarea name="otros_requisitos" value={formData.otros_requisitos} onChange={handleChange} rows={3} placeholder="Inglés intermedio, disponibilidad para viajar, etc." className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" />
+                <textarea name="otros_requisitos" value={formData.otros_requisitos} onChange={handleChange} rows={3} placeholder="Inglés intermedio, disponibilidad para viajar, etc."
+ className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" />
               </div>
 
               <button type="submit" className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
@@ -312,45 +319,47 @@ const Dashboard: React.FC = () => {
         <div className="space-y-4">
           {vacantes.map((vacante) => (
             <div key={vacante.id} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-talenthub-gray mb-1">{vacante.titulo}</h3>
+              
+              {/* === CONTENEDOR CORREGIDO: SE APILA EN MÓVILES === */}
+              <div className="flex flex-col gap-4 mb-4">
+                <div className="w-full">
+                  <h3 className="text-xl font-bold text-talenthub-gray mb-1 break-words">{vacante.titulo}</h3>
                   <p className="text-gray-600 mb-2">{vacante.ubicacion} - {vacante.modalidad}</p>
                   <p className="text-talenthub-blue font-semibold">
                     ${parseFloat(vacante.salario_min).toLocaleString()} - ${parseFloat(vacante.salario_max).toLocaleString()} MXN
                   </p>
                 </div>
                 
-                {/* AQUI ESTÁN TUS BOTONES YA ARREGLADOS */}
-                <div className="flex gap-2">
-                  <button onClick={() => handleEdit(vacante)} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                {/* BOTONES RESPONSIVOS: Se apilan en móvil y se expanden, en PC se alinean */}
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full border-t sm:border-t-0 pt-4 sm:pt-0 border-gray-100">
+                  <button onClick={() => handleEdit(vacante)} className="w-full sm:w-auto flex-1 bg-blue-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-blue-700 transition text-center shadow-sm">
                     Editar
                   </button>
 
                   {/* LÓGICA INTELIGENTE DE ESTADOS */}
                   {vacante.estado_validacion === 'pendiente' ? (
-                    <span className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-bold border border-yellow-300 flex items-center">
+                    <span className="w-full sm:w-auto flex-1 bg-yellow-100 text-yellow-800 px-4 py-3 sm:py-2 rounded-lg font-bold border border-yellow-300 flex items-center justify-center text-center shadow-sm">
                       ⏳ En revisión
                     </span>
                   ) : vacante.estado_validacion === 'rechazada' ? (
-                    <span className="bg-red-100 text-red-800 px-4 py-2 rounded-lg font-bold border border-red-300 flex items-center">
+                    <span className="w-full sm:w-auto flex-1 bg-red-100 text-red-800 px-4 py-3 sm:py-2 rounded-lg font-bold border border-red-300 flex items-center justify-center text-center shadow-sm">
                       ❌ Rechazada
                     </span>
                   ) : vacante.activa ? (
-                    <button onClick={() => handleCerrar(vacante.id)} className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-yellow-600 transition">
+                    <button onClick={() => handleCerrar(vacante.id)} className="w-full sm:w-auto flex-1 bg-yellow-500 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-yellow-600 transition text-center shadow-sm">
                       Cerrar
                     </button>
                   ) : (
-                    <button onClick={() => handleReabrir(vacante.id)} className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition">
+                    <button onClick={() => handleReabrir(vacante.id)} className="w-full sm:w-auto flex-1 bg-green-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-green-700 transition text-center shadow-sm">
                       Reabrir
                     </button>
                   )}
 
-                  <button onClick={() => handleDelete(vacante.id)} className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition">
+                  <button onClick={() => handleDelete(vacante.id)} className="w-full sm:w-auto flex-1 bg-red-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-red-700 transition text-center shadow-sm">
                     Eliminar
                   </button>
                   
-                  <button onClick={() => navigate(`/vacantes/${vacante.id}`)} className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition">
+                  <button onClick={() => navigate(`/vacantes/${vacante.id}`)} className="w-full sm:w-auto flex-1 bg-gray-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-gray-700 transition text-center shadow-sm">
                     Ver
                   </button>
                 </div>
@@ -358,6 +367,7 @@ const Dashboard: React.FC = () => {
               </div>
               <p className="text-gray-700 text-sm line-clamp-2">{vacante.descripcion}</p>
             </div>
+     
           ))}
         </div>
 
