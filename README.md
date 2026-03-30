@@ -95,11 +95,11 @@ npm start
 
 Este proyecto fue planeado, diseñado y desarrollado colaborativamente por:
 
-* **Yeudiel** - *Lead Fullstack Developer & Software Architect*
+* **Yeudiel González** - *Lead Fullstack Developer & Software Architect*
   > Lideró la arquitectura de software, el desarrollo del backend en Django, la integración de pagos, y la construcción de la interfaz en React/TypeScript.
-* **Luis Alberto Xicali Diaz** - *Cloud Infrastructure & Technical Documentation*
+* **Luis Diaz** - *Cloud Infrastructure & Technical Documentation*
   > Encargado de la estructura de la Wiki del proyecto, despliegues y gestión de recursos en entornos de nube (Azure).
-* **Jahir Jaziel Serrano Arana** - *Product Manager & QA Analyst*
+* **Jaziel Arana** - *Product Manager & QA Analyst*
   > Responsable del flujo de usuario, control de calidad (testing de componentes) y validación de las reglas de negocio del sistema.
 
 ---
