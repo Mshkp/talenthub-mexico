@@ -84,6 +84,20 @@ const Dashboard: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // === NUEVO: BLOQUEO DE VACANTES RECHAZADAS ===
+    if (editando) {
+      const vacanteOriginal = vacantes.find(v => v.id === editando);
+      if (vacanteOriginal && vacanteOriginal.estado_validacion === 'rechazada') {
+        showError(
+          'Esta vacante fue rechazada por el validador y no puede ser modificada.', 
+          'Actualización Bloqueada'
+        );
+        return; // Detenemos la función aquí para que no lance el error del backend
+      }
+    }
+    // ===============================================
+
     try {
       const userId = localStorage.getItem('user_id');
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
@@ -320,7 +334,6 @@ const Dashboard: React.FC = () => {
           {vacantes.map((vacante) => (
             <div key={vacante.id} className="bg-white rounded-lg shadow-md p-6">
               
-              {/* === CONTENEDOR CORREGIDO: SE APILA EN MÓVILES === */}
               <div className="flex flex-col gap-4 mb-4">
                 <div className="w-full">
                   <h3 className="text-xl font-bold text-talenthub-gray mb-1 break-words">{vacante.titulo}</h3>
@@ -330,13 +343,11 @@ const Dashboard: React.FC = () => {
                   </p>
                 </div>
                 
-                {/* BOTONES RESPONSIVOS: Se apilan en móvil y se expanden, en PC se alinean */}
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full border-t sm:border-t-0 pt-4 sm:pt-0 border-gray-100">
                   <button onClick={() => handleEdit(vacante)} className="w-full sm:w-auto flex-1 bg-blue-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-blue-700 transition text-center shadow-sm">
                     Editar
                   </button>
 
-                  {/* LÓGICA INTELIGENTE DE ESTADOS */}
                   {vacante.estado_validacion === 'pendiente' ? (
                     <span className="w-full sm:w-auto flex-1 bg-yellow-100 text-yellow-800 px-4 py-3 sm:py-2 rounded-lg font-bold border border-yellow-300 flex items-center justify-center text-center shadow-sm">
                       ⏳ En revisión
