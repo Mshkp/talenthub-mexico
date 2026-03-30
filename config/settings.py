@@ -187,7 +187,7 @@ SIMPLE_JWT = {
 }
 
 
-# Configuración de Correo Electrónico (Vía API HTTPS de Resend)
+# Configuración de Correo Electrónico (Vía API HTTPS de Resend para bypassear Render)
 EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 
 ANYMAIL = {
@@ -197,8 +197,6 @@ ANYMAIL = {
 
 DEFAULT_FROM_EMAIL = 'TalentHub México <hola@talent-hub.me>'
 
-
-
-
+# Configuración para subir archivos (Media)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
