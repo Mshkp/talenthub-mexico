@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Lock, ShieldCheck, Loader2,} from 'lucide-react';
-import PasswordValidator from '../../components/PasswordValidator'; // Ajusta la ruta según donde lo guardes
+import PasswordValidator from '../../components/PasswordValidator';
+import api from '../../services/api';
 
 export default function RestablecerPassword() {
   const { uid, token } = useParams();
@@ -21,7 +22,7 @@ export default function RestablecerPassword() {
     e.preventDefault();
     setMensaje('');
     setEsError(false);
-    
+
     // Validación de seguridad (S-SDLC) antes de enviar al backend
     if (!isPasswordValid) {
       setEsError(true);
@@ -38,26 +39,26 @@ export default function RestablecerPassword() {
     setCargando(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/confirmar-password/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, token, new_password: password })
+      // Usamos tu instancia de API oficial, adiós a localhost
+      const response = await api.post('/confirmar-password/', { 
+        uid, 
+        token, 
+        new_password: password 
       });
 
-      const data = await response.json();
+      setEsError(false);
+      setMensaje('¡Contraseña actualizada! Redirigiendo al puerto de acceso...');
+      setTimeout(() => navigate('/login'), 3000);
 
-      if (response.ok) {
-        setEsError(false);
-        setMensaje('¡Credenciales actualizadas! Redirigiendo al puerto de acceso...');
-        setTimeout(() => navigate('/login'), 3000);
-      } else {
-        setEsError(true);
-        setMensaje(data.error || 'Error al validar la nueva credencial.');
-        setCargando(false);
-      }
     } catch (error) {
       setEsError(true);
-      setMensaje('Error crítico de conexión.');
+      // Extraemos el error limpio que nos mande Django
+      if (error.response && error.response.data && error.response.data.error) {
+        setMensaje(error.response.data.error);
+      } else {
+        setMensaje('Error crítico de conexión con el servidor.');
+      }
+    } finally {
       setCargando(false);
     }
   };
@@ -215,16 +216,17 @@ export default function RestablecerPassword() {
             />
           </div>
 
-          {/* El botón se deshabilita si está cargando o si la contraseña no es segura */}
+
+          {/* El botón ahora solo se deshabilita si está cargando */}
           <button 
             type="submit" 
-            style={{...styles.button, ...((cargando || !isPasswordValid) ? styles.buttonDisabled : {})}} 
-            disabled={cargando || !isPasswordValid}
+            style={{...styles.button, ...(cargando ? styles.buttonDisabled : {})}} 
+            disabled={cargando}
           >
             {cargando ? (
               <><Loader2 style={styles.spin} size={20} /> ACTUALIZANDO...</>
             ) : (
-              'ACTUALIZAR CREDENCIAL'
+              'ACTUALIZAR CONTRASEÑA'
             )}
           </button>
         </form>
