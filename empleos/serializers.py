@@ -26,7 +26,7 @@ class AplicacionSerializer(serializers.ModelSerializer):
     vacante_titulo = serializers.CharField(source='vacante.titulo', read_only=True)
     usuario_nombre = serializers.CharField(source='usuario.username', read_only=True)
     
-    # 🔥 MAGIA PRO: Campo dinámico que busca el CV en tiempo real
+    # Campo dinámico blindado
     cv_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -34,26 +34,37 @@ class AplicacionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_cv_url(self, obj):
-        # Buscamos el perfil del aspirante que hizo esta postulación
         from .models import Aspirante
         try:
-            perfil = Aspirante.objects.get(usuario=obj.usuario)
-            if perfil.cv:
-                # Armamos la URL absoluta para que no se rompa en React
+            # 1. Búsqueda ultra-segura por ID
+            perfil = Aspirante.objects.filter(usuario_id=obj.usuario_id).first()
+            
+            # 2. Si el perfil actual tiene un CV válido y fresco, lo usamos
+            if perfil and perfil.cv:
                 request = self.context.get('request')
                 if request:
                     return request.build_absolute_uri(perfil.cv.url)
                 return perfil.cv.url
-        except Aspirante.DoesNotExist:
-            pass # Si no tiene perfil, regresamos nulo y React muestra la alerta
+                
+            # 3. Fallback: Si no hay CV dinámico, usamos el estático que se guardó al postularse
+            # (El getattr evita errores si el campo crudo no viene en la instancia)
+            cv_estatico = getattr(obj, 'cv_url', None)
+            if cv_estatico:
+                return cv_estatico
+                
+        except Exception:
+            pass
+            
+        # Si de plano no hay CV por ningún lado, manda null para detonar la alerta roja
         return None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # S-SDLC: Data Masking para protección de PII
+        # S-SDLC: Data Masking
         if instance.estado in ['revisado', 'aceptado']:
-            data['usuario_email'] = instance.usuario.email
-            data['usuario_telefono'] = instance.usuario.telefono
+            # Usamos getattr para evitar crashes en producción si faltan datos
+            data['usuario_email'] = getattr(instance.usuario, 'email', None)
+            data['usuario_telefono'] = getattr(instance.usuario, 'telefono', None)
         else:
             data['usuario_email'] = None
             data['usuario_telefono'] = None
