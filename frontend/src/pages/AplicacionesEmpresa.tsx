@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { getMediaUrl } from '../services/api'; // 🔥 Agregamos getMediaUrl
 import { showSuccess, showError } from '../utils/alerts';
 
 interface Aplicacion {
@@ -166,24 +166,23 @@ const AplicacionesEmpresa: React.FC = () => {
           {aplicacionesFiltradas.map((aplicacion) => (
             <div key={aplicacion.id} className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${getEstadoColor(aplicacion.estado)}`}>
               
-              {/* === ENCABEZADO CORREGIDO: TOTALMENTE EN COLUMNA PARA MÓVILES === */}
               <div className="flex flex-col gap-4 mb-4">
                 
-                {/* 1. Nombre - New Line */}
+                {/* 1. Nombre */}
                 <h3 className="text-xl xs:text-2xl font-bold text-talenthub-gray break-words">
                   {aplicacion.usuario_nombre}
                 </h3>
 
-                {/* 2. Etiqueta de Estado - New Line (Se alinea a la izquierda para no flotar) */}
+                {/* 2. Etiqueta de Estado */}
                 <span className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 shadow-sm whitespace-nowrap self-start ${getEstadoColor(aplicacion.estado)}`}>
                   {aplicacion.estado.toUpperCase()}
                 </span>
-                
-                {/* 3. Sección de CV - New Line, Botón grande */}
+         
+                {/* 3. Sección de CV - 🔥 FIX: getMediaUrl envuelve la ruta */}
                 <div className="w-full">
                   {aplicacion.cv_url ? (
                     <a
-                      href={aplicacion.cv_url}
+                      href={getMediaUrl(aplicacion.cv_url) || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center bg-gray-100 text-talenthub-blue px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-200 transition border border-gray-300 shadow-sm w-full gap-2"
@@ -197,7 +196,7 @@ const AplicacionesEmpresa: React.FC = () => {
                   )}
                 </div>
 
-                {/* 4. Información de la Vacante y Fecha - New Line, Letra más chica */}
+                {/* 4. Información de la Vacante y Fecha */}
                 <div className="space-y-1.5 pt-2 border-t border-gray-100">
                   <p className="text-gray-600 font-medium text-sm">
                     Aplicó a: <Link to={`/vacantes/${aplicacion.vacante}`} className="text-talenthub-blue hover:underline font-bold">
@@ -212,7 +211,7 @@ const AplicacionesEmpresa: React.FC = () => {
                 </div>
               </div>
 
-              {/* === S-SDLC: DATOS DE CONTACTO (Ya estaba corregido, lo mantengo) === */}
+              {/* === S-SDLC: DATOS DE CONTACTO === */}
               {(aplicacion.estado === 'aceptado' || aplicacion.estado === 'revisado') ? (
                 <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-200 mt-4">
                   <h4 className="font-bold text-green-800 mb-2">📞 Información de Contacto:</h4>
@@ -229,7 +228,7 @@ const AplicacionesEmpresa: React.FC = () => {
                 </div>
               )}
 
-              {/* === ACCIONES: BOTONES RESPONSIVOS (Ya estaban corregidos, los mantengo) === */}
+              {/* === ACCIONES: BOTONES RESPONSIVOS === */}
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t mt-4">
                 <button
                   onClick={() => cambiarEstado(aplicacion.id, 'revisado')}
