@@ -10,7 +10,6 @@ from .views import (
     PlanViewSet,
     SuscripcionViewSet,
     NotificacionViewSet,
-    capturar_pago,
     register,
     get_user_info,
     crear_pago,
@@ -18,7 +17,6 @@ from .views import (
 )
 
 router = DefaultRouter()
-
 router.register(r'vacantes', VacanteViewSet)
 router.register(r'empresas', EmpresaViewSet)
 router.register(r'aplicaciones', AplicacionViewSet)
@@ -27,14 +25,14 @@ router.register(r'suscripciones', SuscripcionViewSet)
 router.register(r'notificaciones', NotificacionViewSet, basename='notificaciones')
 
 urlpatterns = [
-    # 1️⃣ PRIMERO NUESTRAS RUTAS MANUALES (Para que el router no se las coma)
+    # 1️⃣ RUTAS MANUALES DE PRIORIDAD
     path('vacantes/pendientes/', views.vacantes_pendientes, name='vacantes_pendientes'),
     path('vacantes/validar/<int:pk>/', views.validar_vacante, name='validar_vacante'),
     
-    # 2️⃣ DESPUÉS EL ROUTER AUTOMÁTICO
+    # 2️⃣ ROUTER AUTOMÁTICO
     path('', include(router.urls)),
     
-    # 3️⃣ Y EL RESTO DE TUS RUTAS
+    # 3️⃣ RUTAS DE USUARIO Y SISTEMA
     path('register/', register), 
     path('login/', login),       
     path('user-info/', get_user_info),

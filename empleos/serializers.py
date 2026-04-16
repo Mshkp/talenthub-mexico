@@ -2,9 +2,7 @@ from rest_framework import serializers
 from .models import Usuario, Empresa, Vacante, Aplicacion
 from .models import Plan, Suscripcion, Notificacion
 from .models import Aspirante
-import json
 import os
-from rest_framework import serializers
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,50 +30,43 @@ class AplicacionSerializer(serializers.ModelSerializer):
         model = Aplicacion
         fields = '__all__'
 
-    # S-SDLC: Control de Acceso y Prevención de Fuga de Datos (Data Leakage Prevention)
     def to_representation(self, instance):
-        # Obtenemos los datos base
         data = super().to_representation(instance)
-        
-        # Solo inyectamos los datos sensibles si el estado lo permite
+        # S-SDLC: Data Masking para protección de PII
         if instance.estado in ['revisado', 'aceptado']:
             data['usuario_email'] = instance.usuario.email
             data['usuario_telefono'] = instance.usuario.telefono
         else:
-            # Si está pendiente o rechazado, enviamos nulo (Data Masking)
             data['usuario_email'] = None
             data['usuario_telefono'] = None
-            
         return data
 
-
-
-class PlanSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Plan
-        fields = '__all__'
-
-
-class SuscripcionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Suscripcion
-        fields = '__all__'
-
-
-class NotificacionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notificacion
-        fields = '__all__'
-
-
-
 class AspiranteSerializer(serializers.ModelSerializer):
+    # Inyección de URLs absolutas para evitar errores de carga en Frontend
+    foto_url = serializers.SerializerMethodField()
+    cv_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Aspirante
         fields = '__all__'
         read_only_fields = ['usuario']
 
-    # Solo conservamos la validación de archivos (S-SDLC)
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.foto.url)
+            return obj.foto.url
+        return None
+
+    def get_cv_url(self, obj):
+        if obj.cv:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.cv.url)
+            return obj.cv.url
+        return None
+
     def validate_cv(self, value):
         if value and hasattr(value, 'name'):
             ext = os.path.splitext(value.name)[1].lower()
@@ -94,3 +85,18 @@ class AspiranteSerializer(serializers.ModelSerializer):
             if value.size > 2 * 1024 * 1024:
                 raise serializers.ValidationError("La imagen excede el límite permitido de 2MB.")
         return value
+
+class PlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Plan
+        fields = '__all__'
+
+class SuscripcionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Suscripcion
+        fields = '__all__'
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacion
+        fields = '__all__'
