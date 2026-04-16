@@ -26,9 +26,27 @@ class AplicacionSerializer(serializers.ModelSerializer):
     vacante_titulo = serializers.CharField(source='vacante.titulo', read_only=True)
     usuario_nombre = serializers.CharField(source='usuario.username', read_only=True)
     
+    # 🔥 MAGIA PRO: Campo dinámico que busca el CV en tiempo real
+    cv_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Aplicacion
         fields = '__all__'
+
+    def get_cv_url(self, obj):
+        # Buscamos el perfil del aspirante que hizo esta postulación
+        from .models import Aspirante
+        try:
+            perfil = Aspirante.objects.get(usuario=obj.usuario)
+            if perfil.cv:
+                # Armamos la URL absoluta para que no se rompa en React
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(perfil.cv.url)
+                return perfil.cv.url
+        except Aspirante.DoesNotExist:
+            pass # Si no tiene perfil, regresamos nulo y React muestra la alerta
+        return None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
