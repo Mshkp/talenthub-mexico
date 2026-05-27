@@ -136,6 +136,7 @@ This project was planned, designed, and developed collaboratively by:
 
 ---
 
+<a name="version-en-espanol"></a>
 ## 🇲🇽 Versión en Español
 
 **TalentHub México** es un observatorio y portal de empleos especializado en el sector de Tecnologías de la Información (TI). Conecta a empresas con los mejores talentos del país mediante una plataforma segura, intuitiva y basada en roles.
