@@ -81,9 +81,23 @@ cd talenthub-mexico
 
 ### 2. Configure the Backend (Django)
 
-Create a `.env` file in the root of the backend and add the following variable to use the local SQLite database:
+Create a `.env` file in the root of the backend directory and add the following environment variables. *Note: Ask the repository administrator for the actual production credentials.*
 
 ```env
+# Database Configuration (Supabase / PostgreSQL)
+DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASSWORD=your_secure_password
+DB_HOST=your_database_host.supabase.com
+DB_PORT=6543
+
+# Email Services (Resend / SMTP)
+EMAIL_HOST_USER=your_smtp_user
+EMAIL_HOST_PASSWORD=your_smtp_password
+
+# Django Local Settings
+SECRET_KEY=your_django_secret_key_here
+DJANGO_DEBUG=True
 USE_SQLITE=True
 
 ```
@@ -116,17 +130,16 @@ npm start
 This project was planned, designed, and developed collaboratively by:
 
 * **Yeudiel González** - *Lead Fullstack Developer & Software Architect*
+
 > Led the software architecture, Django backend development, payment integration, and React/TypeScript interface construction.
 
-
 * **Luis Díaz** - *Cloud Infrastructure & Technical Documentation*
+
 > In charge of the project's Wiki structure, deployments, and resource management in cloud environments (Azure).
 
-
 * **Jaziel Arana** - *Product Manager & QA Analyst*
+
 > Responsible for user flow, quality control (component testing), and system business rules validation.
-
-
 
 ---
 
@@ -214,9 +227,23 @@ cd talenthub-mexico
 
 ### 2. Configurar el Backend (Django)
 
-Crea un archivo `.env` en la raíz del backend y agrega la siguiente variable para usar la base de datos local SQLite:
+Crea un archivo `.env` en la raíz de la carpeta del backend y agrega las siguientes variables de entorno. *Nota: Solicita al administrador del repositorio las credenciales reales de producción.*
 
 ```env
+# Configuración de Base de Datos (Supabase / PostgreSQL)
+DB_NAME=nombre_de_tu_bd
+DB_USER=usuario_de_tu_bd
+DB_PASSWORD=tu_contrasena_segura
+DB_HOST=tu_host_de_base_de_datos.supabase.com
+DB_PORT=6543
+
+# Servicios de Email (Resend / SMTP)
+EMAIL_HOST_USER=tu_usuario_smtp
+EMAIL_HOST_PASSWORD=tu_contrasena_smtp
+
+# Configuración Local de Django
+SECRET_KEY=tu_clave_secreta_de_django
+DJANGO_DEBUG=True
 USE_SQLITE=True
 
 ```
@@ -249,17 +276,16 @@ npm start
 Este proyecto fue planeado, diseñado y desarrollado colaborativamente por:
 
 * **Yeudiel González** - *Lead Fullstack Developer & Software Architect*
+
 > Lideró la arquitectura de software, el desarrollo del backend en Django, la integración de pagos, y la construcción de la interfaz en React/TypeScript.
 
-
 * **Luis Díaz** - *Cloud Infrastructure & Technical Documentation*
+
 > Encargado de la estructura de la Wiki del proyecto, despliegues y gestión de recursos en entornos de nube (Azure).
 
-
 * **Jaziel Arana** - *Product Manager & QA Analyst*
+
 > Responsable del flujo de usuario, control de calidad (testing de componentes) y validación de las reglas de negocio del sistema.
-
-
 
 ---
 
