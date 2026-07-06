@@ -227,7 +227,11 @@ cd talenthub-mexico
 
 ### 2. Configurar el Backend (Django)
 
-Crea un archivo `.env` en la raíz de la carpeta del backend y agrega las siguientes variables de entorno. *Nota: Solicita al administrador del repositorio las credenciales reales de producción.*
+Para configurar correctamente el backend, primero crea un archivo llamado `.env` en la raíz del proyecto del backend. Este archivo almacenará las variables de entorno necesarias para el funcionamiento de la aplicación, como las credenciales de la base de datos, claves secretas y otros parámetros de configuración. Mantener esta información en un archivo separado permite proteger datos sensibles y facilita la configuración en diferentes entornos (desarrollo, pruebas y producción).
+
+Una vez creado el archivo `.env`, agrega las variables de entorno requeridas por el proyecto utilizando el formato correspondiente.
+
+> **Nota:** Las credenciales y claves utilizadas en el entorno de producción no se encuentran incluidas en el repositorio por motivos de seguridad. Solicita al administrador o responsable del repositorio las credenciales reales antes de ejecutar la aplicación en un entorno productivo.
 
 ```env
 # Configuración de Base de Datos (Supabase / PostgreSQL)
