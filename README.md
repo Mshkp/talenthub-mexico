@@ -293,6 +293,8 @@ Este proyecto fue planeado, diseñado y desarrollado colaborativamente por:
 
 ---
 
+Fin del archivo
+
 *Desarrollado con ☕ y código en Puebla, México.*
 
 ```
