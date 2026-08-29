@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, MapPin, CalendarDays, ArrowRight, Send, LogIn } from 'lucide-react';
 import api from '../services/api';
 import { showSuccess, showError } from '../utils/alerts';
+import { Button, Card, EmptyState, SkeletonCard, Tag, TONO_MODALIDAD } from '../components/ui';
+import { rise, stagger } from '../lib/motion';
 
 interface Vacante {
   id: number;
@@ -17,218 +21,259 @@ interface Vacante {
   activa: boolean;
 }
 
+const MXN = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+
+/** La ruta de regreso depende del rol: cada uno llegó aquí desde otro lado. */
+const REGRESO: Record<string, { ruta: string; texto: string }> = {
+  empresa: { ruta: '/dashboard', texto: 'Volver al dashboard' },
+  validador: { ruta: '/validador', texto: 'Volver al centro de validación' },
+};
+
 const VacanteDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [vacante, setVacante] = useState<Vacante | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
+  const [enviando, setEnviando] = useState(false);
 
-  // Lógica mejorada para la ruta de regreso según el rol
-  const userTipo = localStorage.getItem('user_tipo'); 
-  let rutaRegreso = '/vacantes';
-  let textoRegreso = '← Volver a vacantes';
+  const userTipo = localStorage.getItem('user_tipo') ?? '';
+  const { ruta: rutaRegreso, texto: textoRegreso } =
+    REGRESO[userTipo] ?? { ruta: '/vacantes', texto: 'Volver a vacantes' };
 
-  if (userTipo === 'empresa') {
-    rutaRegreso = '/dashboard';
-    textoRegreso = '← Volver al Dashboard';
-  } else if (userTipo === 'validador') {
-    rutaRegreso = '/validador';
-    textoRegreso = '← Volver al Centro de Validación';
-  }
+  const fetchVacante = useCallback(async () => {
+    setEstado('cargando');
+    try {
+      const response = await api.get(`/vacantes/${id}/`);
+      setVacante(response.data);
+      setEstado('listo');
+    } catch (error) {
+      console.error('Error:', error);
+      setEstado('error');
+    }
+  }, [id]);
 
   useEffect(() => {
-    const fetchVacante = async () => {
-      try {
-        const response = await api.get(`/vacantes/${id}/`);
-        setVacante(response.data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error:', error);
-        setLoading(false);
-      }
-    };
-
     fetchVacante();
-  }, [id]);
+  }, [fetchVacante]);
 
   const handleAplicar = async () => {
     const token = localStorage.getItem('token');
     const userId = localStorage.getItem('user_id');
-    
+
     if (!token || !userId) {
-      showError('Debes iniciar sesión para aplicar');
+      showError('Inicia sesión para postularte a esta vacante.', 'Falta un paso');
       navigate('/login');
       return;
     }
 
+    setEnviando(true);
     try {
-      await api.post('/aplicaciones/', {
-        vacante: id,
-        usuario: userId,
-        estado: 'pendiente'
-      });
-      showSuccess('¡Aplicación enviada exitosamente!', 'Tu CV guardado fue adjuntado automáticamente.'); 
+      await api.post('/aplicaciones/', { vacante: id, usuario: userId, estado: 'pendiente' });
+      showSuccess('Tu CV guardado se adjuntó automáticamente.', 'Postulación enviada');
       navigate('/mis-aplicaciones');
     } catch (error: any) {
       const errorData = error.response?.data;
-      
+
       if (errorData?.error === 'CV_MISSING') {
-        showError('No tienes un CV guardado', 'Por favor sube tu CV en la sección "Mi Perfil" antes de aplicar.');
+        showError('Sube tu CV en Mi perfil antes de postularte.', 'No tienes un CV guardado');
         navigate('/mi-perfil');
       } else if (error.response?.status === 400) {
-        showError(errorData?.detail || 'Ya aplicaste a esta vacante o faltan datos', '¡Ojo!'); 
+        showError(errorData?.detail || 'Ya te postulaste a esta vacante o faltan datos.');
       } else {
-        showError('Error al aplicar. Intenta de nuevo.'); 
+        showError('No se pudo enviar tu postulación. Inténtalo de nuevo.');
       }
+      setEnviando(false);
     }
   };
 
-  if (loading) {
+  if (estado === 'cargando') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-talenthub-gray">Cargando...</div>
-      </div>
-    );
-  }
-
-  if (!vacante) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-gray-600">Vacante no encontrada</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="max-w-4xl w-full mx-auto px-4 py-8 flex-grow">
-        <Link to={rutaRegreso} className="text-talenthub-blue hover:underline mb-4 inline-block font-semibold">
-          {textoRegreso}
-        </Link>
-
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          {/* Header */}
-          <div className="border-b pb-6 mb-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
-                  {vacante.titulo}
-                </h1>
-                <p className="text-xl text-gray-600 font-medium">{vacante.empresa_nombre}</p>
-              </div>
-              <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                vacante.modalidad === 'remoto' ? 'bg-green-100 text-green-800' :
-                vacante.modalidad === 'presencial' ? 'bg-blue-100 text-blue-800' :
-                'bg-purple-100 text-purple-800'
-              }`}>
-                {vacante.modalidad.charAt(0).toUpperCase() + vacante.modalidad.slice(1)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-6 text-gray-600 font-medium">
-              <div>
-                <span className="text-sm">📍</span> {vacante.ubicacion}
-              </div>
-              <div>
-                <span className="text-sm">📅</span> {new Date(vacante.fecha_publicacion).toLocaleDateString('es-MX')}
-              </div>
-            </div>
-          </div>
-
-          {/* Salario */}
-          <div className="bg-blue-50 border-l-4 border-talenthub-blue p-6 mb-6 rounded">
-            <h2 className="text-lg font-bold text-talenthub-gray mb-2">💰 Salario</h2>
-            <p className="text-3xl font-bold text-talenthub-blue">
-              ${parseFloat(vacante.salario_min).toLocaleString()} - ${parseFloat(vacante.salario_max).toLocaleString()} MXN
-            </p>
-            <p className="text-sm text-gray-600 mt-1 font-medium">Mensual</p>
-          </div>
-
-          {/* Descripción */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-talenthub-gray mb-4">Descripción del puesto</h2>
-            <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg">
-              {vacante.descripcion}
-            </p>
-          </div>
-
-          {/* Requisitos */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-talenthub-gray mb-4">Requisitos</h2>
-            <div className="bg-gray-50 p-6 rounded-lg">
-              {typeof vacante.requisitos === 'object' ? (
-                <div className="space-y-4">
-                  {vacante.requisitos?.lenguajes && (
-                    <div>
-                      <h3 className="font-bold text-gray-800 mb-2">Tecnologías:</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {vacante.requisitos.lenguajes.map((tech: string, index: number) => (
-                          <span key={index} className="bg-blue-100 text-blue-800 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">
-                            {tech}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {vacante.requisitos?.experiencia && (
-                    <div className="mt-4">
-                      <h3 className="font-bold text-gray-800 mb-2">Experiencia:</h3>
-                      <p className="text-gray-700 text-lg">{vacante.requisitos.experiencia}</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-700 text-lg">{vacante.requisitos}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Botón Aplicar / Vistas por Rol */}
-          <div className="border-t pt-6">
-            {userTipo === 'aspirante' ? (
-              <>
-                <button
-                  onClick={handleAplicar}
-                  className="w-full bg-talenthub-blue text-white py-4 rounded-lg font-bold text-xl hover:bg-blue-700 transition shadow-lg cursor-pointer"
-                >
-                  Aplicar a esta vacante
-                </button>
-                <p className="text-center text-sm text-gray-500 mt-4 font-medium">
-                  Al aplicar, tu perfil será enviado directamente a {vacante.empresa_nombre}
-                </p>
-              </>
-            ) : userTipo === 'empresa' ? (
-              <div className="bg-blue-50 border-l-4 border-talenthub-blue p-6 rounded">
-                <p className="text-talenthub-gray font-bold text-lg">
-                  📋 Esta es una de las vacantes publicadas en la plataforma
-                </p>
-                <p className="text-gray-600 mt-2 font-medium">
-                  Como empresa, puedes gestionar tus vacantes desde el <Link to="/dashboard" className="text-talenthub-blue font-bold hover:underline">Dashboard</Link>
-                </p>
-              </div>
-            ) : userTipo === 'validador' ? (
-              <div className="bg-purple-50 border-l-4 border-purple-500 p-6 rounded text-center">
-                <p className="text-purple-800 font-bold text-lg">
-                  🛡️ Vista de Auditoría (Validador)
-                </p>
-                <p className="text-purple-600 mt-2 font-medium">
-                  Estás viendo los detalles de esta vacante como parte de tu revisión de calidad.
-                </p>
-              </div>
-            ) : (
-              <div className="text-center bg-gray-50 p-6 rounded-lg border">
-                <p className="text-gray-600 mb-4 font-medium text-lg">Para aplicar a esta vacante, necesitas iniciar sesión</p>
-                <Link 
-                  to="/login"
-                  className="inline-block bg-talenthub-blue text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
-                >
-                  Iniciar Sesión
-                </Link>
-              </div>
-            )}
-          </div>
+      <div className="min-h-screen mesh-page">
+        <div className="mx-auto max-w-4xl px-6 pb-20 pt-10 md:px-7 md:pt-12">
+          <SkeletonCard />
         </div>
       </div>
+    );
+  }
+
+  if (estado === 'error' || !vacante) {
+    return (
+      <div className="min-h-screen mesh-page">
+        <div className="mx-auto max-w-4xl px-6 pb-20 pt-10 md:px-7 md:pt-12">
+          <EmptyState
+            title="No encontramos esta vacante"
+            description="Puede que se haya despublicado o que el enlace esté mal."
+            action={
+              <Link to="/vacantes">
+                <Button variant="ghost">
+                  <ArrowRight size={15} strokeWidth={1.8} />
+                  Ver todas las vacantes
+                </Button>
+              </Link>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const requisitos = vacante.requisitos;
+  const esObjeto = requisitos && typeof requisitos === 'object';
+
+  return (
+    <div className="min-h-screen mesh-page">
+      {/* ── Banda oscura: identidad de la vacante ── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[130px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-52 left-1/2 -z-10 h-[560px] w-[1000px] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.15),transparent_74%)] blur-[6px]"
+        />
+        <div className="relative mx-auto max-w-4xl px-6 md:px-7">
+          <Link
+            to={rutaRegreso}
+            className="mb-7 inline-flex items-center gap-2 text-[0.875rem] text-muted-d transition-colors hover:text-ink-d"
+          >
+            <ArrowLeft size={15} strokeWidth={1.8} />
+            {textoRegreso}
+          </Link>
+
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="font-heading text-[clamp(1.75rem,4vw,2.75rem)] font-mid leading-tight tracking-[-0.03em]">
+                {vacante.titulo}
+              </h1>
+              <p className="mt-2.5 text-sub text-ink-2d">{vacante.empresa_nombre}</p>
+            </div>
+            <Tag tone="dark" tono={TONO_MODALIDAD[vacante.modalidad] ?? 'neutro'}>
+              {vacante.modalidad.charAt(0).toUpperCase() + vacante.modalidad.slice(1)}
+            </Tag>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-2 text-[0.875rem] text-muted-d">
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin size={14} strokeWidth={1.7} />
+              {vacante.ubicacion}
+            </span>
+            <span className="tabular inline-flex items-center gap-1.5">
+              <CalendarDays size={14} strokeWidth={1.7} />
+              {new Date(vacante.fecha_publicacion).toLocaleDateString('es-MX', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <motion.div
+        variants={stagger(0.07)}
+        initial="hidden"
+        animate="show"
+        className="mx-auto max-w-4xl px-6 pb-20 md:px-7"
+      >
+        {/* ── La hoja en glass, montada sobre la banda: el documento ── */}
+        <div className="glass-panel glass-panel-overlap edge-l mb-5 p-7 md:p-9">
+        {/* ── Salario: sin caja de color, el peso lo da la tipografía ── */}
+        <motion.section variants={rise} className="border-b border-hairline pb-8">
+          <p className="text-[0.8125rem] uppercase tracking-[0.06em] text-ink-2">Rango salarial</p>
+          <p className="tabular mt-2.5 text-[clamp(1.5rem,3.4vw,2rem)] font-mid leading-none tracking-[-0.025em] text-ink">
+            ${MXN.format(parseFloat(vacante.salario_min))} – ${MXN.format(parseFloat(vacante.salario_max))}{' '}
+            <span className="ml-1 text-[0.9375rem] font-normal text-muted">MXN mensuales</span>
+          </p>
+        </motion.section>
+
+        {/* ── Descripción ── */}
+        <motion.section variants={rise} className="border-b border-hairline py-8">
+          <h2 className="mb-4 text-h3 font-demi text-ink">Descripción del puesto</h2>
+          <p className="max-w-[68ch] whitespace-pre-line text-[1.0625rem] leading-relaxed text-ink-2">
+            {vacante.descripcion}
+          </p>
+        </motion.section>
+
+        {/* ── Requisitos ── */}
+        <motion.section variants={rise} className="pt-8">
+          <h2 className="mb-5 text-h3 font-demi text-ink">Requisitos</h2>
+
+          {esObjeto ? (
+            <div className="flex flex-col gap-7">
+              {requisitos?.lenguajes?.length > 0 && (
+                <div>
+                  <h3 className="mb-3 text-[0.8125rem] uppercase tracking-[0.06em] text-muted">
+                    Tecnologías
+                  </h3>
+                  <ul className="flex list-none flex-wrap gap-2 p-0">
+                    {requisitos.lenguajes.map((tech: string) => (
+                      <li key={tech}>
+                        <Tag>{tech}</Tag>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {requisitos?.experiencia && (
+                <div>
+                  <h3 className="mb-2 text-[0.8125rem] uppercase tracking-[0.06em] text-muted">
+                    Experiencia
+                  </h3>
+                  <p className="max-w-[68ch] text-[1.0625rem] leading-relaxed text-ink-2">
+                    {requisitos.experiencia}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="max-w-[68ch] text-[1.0625rem] leading-relaxed text-ink-2">{requisitos}</p>
+          )}
+        </motion.section>
+
+        </div>
+
+        {/* ── Acción según rol: fuera de la hoja, es la decisión no el documento ── */}
+        <motion.section variants={rise}>
+          {userTipo === 'aspirante' ? (
+            <div>
+              <Button variant="accent" className="w-full" onClick={handleAplicar} disabled={enviando}>
+                <Send size={15} strokeWidth={1.8} />
+                {enviando ? 'Enviando…' : 'Postularme a esta vacante'}
+              </Button>
+              <p className="mt-4 text-center text-[0.875rem] text-muted">
+                Tu perfil y tu CV se envían directamente a {vacante.empresa_nombre}.
+              </p>
+            </div>
+          ) : userTipo === 'empresa' ? (
+            <Card>
+              <p className="text-body text-ink">Esta es una vacante publicada en la plataforma.</p>
+              <p className="mt-2 text-[0.9375rem] text-ink-2">
+                Puedes gestionar las tuyas desde el{' '}
+                <Link to="/dashboard" className="text-accent hover:underline">
+                  dashboard
+                </Link>
+                .
+              </p>
+            </Card>
+          ) : userTipo === 'validador' ? (
+            <Card>
+              <p className="text-[0.8125rem] uppercase tracking-[0.06em] text-muted">Vista de auditoría</p>
+              <p className="mt-2 text-body text-ink">
+                Estás viendo esta vacante como parte de tu revisión de calidad.
+              </p>
+            </Card>
+          ) : (
+            <Card className="text-center">
+              <p className="text-body text-ink-2">Inicia sesión para postularte a esta vacante.</p>
+              <div className="mt-5">
+                <Link to="/login">
+                  <Button variant="accent">
+                    <LogIn size={15} strokeWidth={1.8} />
+                    Iniciar sesión
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          )}
+        </motion.section>
+      </motion.div>
     </div>
   );
 };

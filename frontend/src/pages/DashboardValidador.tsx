@@ -1,7 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowLeft,
+  Ban,
+  Check,
+  Inbox,
+  Layers,
+  Plus,
+  RotateCcw,
+  ScrollText,
+  Users,
+  X,
+} from 'lucide-react';
 import api from '../services/api';
 import { showSuccess, showError, showConfirm } from '../utils/alerts';
+import {
+  Button,
+  Card,
+  CountUp,
+  EmptyState,
+  Input,
+  SkeletonList,
+  Tabs,
+  Tag,
+} from '../components/ui';
+import type { TabItem } from '../components/ui';
+import { DUR, EASE, rise, stagger } from '../lib/motion';
 
 interface VacantePendiente {
   id: number;
@@ -25,111 +50,134 @@ interface UsuarioAuditoria {
   date_joined: string;
 }
 
+interface Tecnologia {
+  id: number;
+  nombre: string;
+}
+
+type Pestana = 'vacantes' | 'usuarios' | 'historial' | 'stack';
+
+const FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+
 const DashboardValidador: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  
-  // Ahora tenemos 4 increíbles pestañas
-  const [activeTab, setActiveTab] = useState<'vacantes' | 'usuarios' | 'historial' | 'stack'>('vacantes');
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
+  const [tab, setTab] = useState<Pestana>('vacantes');
 
   const [vacantes, setVacantes] = useState<VacantePendiente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioAuditoria[]>([]);
   const [historial, setHistorial] = useState<VacantePendiente[]>([]);
-  
-  // Estados para el Stack (Punto 1.9)
-  const [tecnologias, setTecnologias] = useState<{id: number, nombre: string}[]>([]);
+  const [tecnologias, setTecnologias] = useState<Tecnologia[]>([]);
   const [nuevaTech, setNuevaTech] = useState('');
-  
+
   const [metricas, setMetricas] = useState({
     total_usuarios: 0,
     total_empresas: 0,
     vacantes_activas: 0,
-    total_postulaciones: 0
+    total_postulaciones: 0,
   });
+
+  const fetchMetricas = useCallback(async () => {
+    const { data } = await api.get('/validador/metricas/');
+    setMetricas(data);
+  }, []);
+
+  const fetchPendientes = useCallback(async () => {
+    const { data } = await api.get('/vacantes/pendientes/');
+    setVacantes(data);
+  }, []);
+
+  const fetchUsuarios = useCallback(async () => {
+    const { data } = await api.get('/validador/usuarios/');
+    setUsuarios(data);
+  }, []);
+
+  const fetchHistorial = useCallback(async () => {
+    const { data } = await api.get('/validador/vacantes/historial/');
+    setHistorial(data);
+  }, []);
+
+  const fetchTecnologias = useCallback(async () => {
+    const { data } = await api.get('/validador/tecnologias/');
+    setTecnologias(data);
+  }, []);
+
+  const cargarTodo = useCallback(async () => {
+    setEstado('cargando');
+    try {
+      // En paralelo: son cuatro endpoints independientes y encadenarlos
+      // multiplicaba por cuatro la espera del validador.
+      await Promise.all([
+        fetchMetricas(),
+        fetchPendientes(),
+        fetchUsuarios(),
+        fetchHistorial(),
+        fetchTecnologias(),
+      ]);
+      setEstado('listo');
+    } catch {
+      setEstado('error');
+    }
+  }, [fetchMetricas, fetchPendientes, fetchUsuarios, fetchHistorial, fetchTecnologias]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userTipo = localStorage.getItem('user_tipo');
 
     if (!token || userTipo !== 'validador') {
-      showError('Acceso denegado. Esta área es solo para Validadores.');
+      showError('Esta área es solo para validadores.', 'Acceso denegado');
       navigate('/');
       return;
     }
 
-    fetchMetricas();
-    fetchPendientes();
-    fetchUsuarios();
-    fetchHistorial();
-    fetchTecnologias(); // Cargamos el stack oficial
-  }, [navigate]);
+    cargarTodo();
+  }, [navigate, cargarTodo]);
 
-  const fetchMetricas = async () => {
-    try {
-      const response = await api.get('/validador/metricas/');
-      setMetricas(response.data);
-    } catch (error) { console.error('Error métricas'); }
-  };
-
-  const fetchPendientes = async () => {
-    try {
-      const response = await api.get('/vacantes/pendientes/');
-      setVacantes(response.data);
-      setLoading(false);
-    } catch (error) { 
-      showError('Error pendientes'); 
-      setLoading(false); 
-    }
-  };
-
-  const fetchUsuarios = async () => {
-    try {
-      const response = await api.get('/validador/usuarios/');
-      setUsuarios(response.data);
-    } catch (error) { console.error('Error usuarios'); }
-  };
-
-  const fetchHistorial = async () => {
-    try {
-      const response = await api.get('/validador/vacantes/historial/');
-      setHistorial(response.data);
-    } catch (error) { console.error('Error historial'); }
-  };
-
-  const fetchTecnologias = async () => {
-    try {
-      const response = await api.get('/validador/tecnologias/');
-      setTecnologias(response.data);
-    } catch (error) { console.error('Error stack'); }
-  };
-
-  const handleValidacion = async (id: number, accion: 'aprobar' | 'rechazar') => {
-    const verbo = accion === 'aprobar' ? 'aprobar y publicar' : 'rechazar y ocultar';
-    const confirmado = await showConfirm(`¿Estás seguro de que deseas ${verbo} esta vacante?`, 'Confirmar Acción');
+  const handleValidacion = async (vacante: VacantePendiente, accion: 'aprobar' | 'rechazar') => {
+    const confirmado = await showConfirm(
+      accion === 'aprobar'
+        ? `«${vacante.titulo}» quedará visible para todos los aspirantes.`
+        : `«${vacante.titulo}» no se publicará y la empresa verá el rechazo.`,
+      accion === 'aprobar' ? 'Publicar vacante' : 'Rechazar vacante',
+      {
+        confirmLabel: accion === 'aprobar' ? 'Publicar' : 'Rechazar',
+        destructive: accion === 'rechazar',
+      }
+    );
     if (!confirmado) return;
 
     try {
-      await api.post(`/vacantes/validar/${id}/`, { accion });
-      showSuccess(`La vacante ha sido ${accion === 'aprobar' ? 'APROBADA' : 'RECHAZADA'}`);
-      fetchPendientes();
-      fetchHistorial();
-      fetchMetricas(); 
-    } catch (error) {
-      showError(`Hubo un error al intentar ${accion} la vacante`);
+      await api.post(`/vacantes/validar/${vacante.id}/`, { accion });
+      showSuccess(
+        accion === 'aprobar' ? 'La vacante ya es pública.' : 'La vacante quedó fuera del muro.',
+        accion === 'aprobar' ? 'Aprobada' : 'Rechazada'
+      );
+      await Promise.all([fetchPendientes(), fetchHistorial(), fetchMetricas()]);
+    } catch {
+      showError(`No pudimos ${accion} la vacante.`);
     }
   };
 
   const handleSuspender = async (usuario: UsuarioAuditoria) => {
-    const accion = usuario.is_active ? 'SUSPENDER (Bloquear acceso)' : 'REACTIVAR (Permitir acceso)';
-    const confirmado = await showConfirm(`¿Estás seguro de que deseas ${accion} al usuario ${usuario.username}?`, 'Atención de Seguridad');
+    const suspendiendo = usuario.is_active;
+    const confirmado = await showConfirm(
+      suspendiendo
+        ? `${usuario.username} no podrá iniciar sesión hasta que lo reactives.`
+        : `${usuario.username} recuperará el acceso a su cuenta.`,
+      suspendiendo ? 'Suspender cuenta' : 'Reactivar cuenta',
+      {
+        confirmLabel: suspendiendo ? 'Suspender' : 'Reactivar',
+        destructive: suspendiendo,
+      }
+    );
     if (!confirmado) return;
 
     try {
       await api.post(`/validador/usuarios/${usuario.id}/suspender/`, {});
-      showSuccess(`Usuario ${usuario.is_active ? 'suspendido' : 'reactivado'} con éxito.`);
-      fetchUsuarios();
-    } catch (error) {
-      showError('Problema al cambiar estado del usuario.');
+      showSuccess(suspendiendo ? 'Cuenta suspendida.' : 'Cuenta reactivada.');
+      await fetchUsuarios();
+    } catch {
+      showError('No pudimos cambiar el estado de la cuenta.');
     }
   };
 
@@ -137,231 +185,397 @@ const DashboardValidador: React.FC = () => {
     e.preventDefault();
     if (!nuevaTech.trim()) return;
     try {
-      await api.post('/validador/tecnologias/', { nombre: nuevaTech });
-      showSuccess('Tecnología agregada al catálogo oficial');
+      await api.post('/validador/tecnologias/', { nombre: nuevaTech.trim() });
+      showSuccess(`${nuevaTech.trim()} entró al catálogo.`);
       setNuevaTech('');
-      fetchTecnologias();
+      await fetchTecnologias();
     } catch (error: any) {
-      showError(error.response?.data?.error || 'Error al agregar tecnología');
+      showError(error.response?.data?.error || 'No pudimos agregar la tecnología.');
     }
   };
 
-  const handleDeleteTech = async (id: number) => {
-    const confirmado = await showConfirm('¿Eliminar esta tecnología del catálogo oficial?', 'Confirmar');
+  const handleDeleteTech = async (tech: Tecnologia) => {
+    const confirmado = await showConfirm(
+      `${tech.nombre} dejará de estar disponible para empresas y aspirantes.`,
+      'Quitar del catálogo',
+      { confirmLabel: 'Quitar', destructive: true }
+    );
     if (!confirmado) return;
     try {
-      await api.delete(`/validador/tecnologias/${id}/`);
-      showSuccess('Tecnología eliminada');
-      fetchTecnologias();
-    } catch (error) {
-      showError('Error al eliminar');
+      await api.delete(`/validador/tecnologias/${tech.id}/`);
+      showSuccess('Tecnología eliminada.');
+      await fetchTecnologias();
+    } catch {
+      showError('No pudimos eliminar la tecnología.');
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-xl font-bold text-gray-600">Cargando sala de mando...</div></div>;
+  const PESTANAS: TabItem[] = [
+    { id: 'vacantes', label: 'Cola', count: vacantes.length, icon: Inbox },
+    { id: 'usuarios', label: 'Cuentas', count: usuarios.length, icon: Users },
+    { id: 'historial', label: 'Historial', count: historial.length, icon: ScrollText },
+    { id: 'stack', label: 'Catálogo', count: tecnologias.length, icon: Layers },
+  ];
+
+  const METRICAS = [
+    { label: 'Usuarios', total: metricas.total_usuarios },
+    { label: 'Empresas', total: metricas.total_empresas },
+    { label: 'Vacantes públicas', total: metricas.vacantes_activas },
+    { label: 'Postulaciones', total: metricas.total_postulaciones },
+  ];
+
+  const panelProps = (id: Pestana) => ({
+    role: 'tabpanel' as const,
+    id: `validador-panel-${id}`,
+    'aria-labelledby': `validador-tab-${id}`,
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        
-        <Link to="/vacantes" className="text-talenthub-blue hover:underline mb-6 inline-block font-semibold text-lg">
-          ← Volver al Muro Público
-        </Link>
-        
-        <div className="mb-6 border-b-4 border-talenthub-blue pb-4">
-          <h1 className="text-4xl font-bold text-gray-800">Centro de Validación 🛡️</h1>
-        </div>
+    <div className="mesh-page min-h-screen">
+      {/* ───────────── Banda oscura ───────────── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[140px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-52 left-1/2 -z-10 h-[560px] w-[1000px] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.15),transparent_74%)] blur-[6px]"
+        />
+        <div className="relative mx-auto flex max-w-page flex-wrap items-end justify-between gap-6 px-6 md:px-7">
+          <div>
+            <p className="mb-4 text-caption uppercase tracking-[0.06em] text-muted-d">Validación</p>
+            <h1 className="font-heading text-[clamp(2rem,4.4vw,3rem)] font-mid leading-none tracking-[-0.035em]">
+              Centro de validación
+            </h1>
+            <p className="tabular mt-3 text-sub text-ink-2d">
+              {estado === 'cargando'
+                ? 'Cargando la cola…'
+                : vacantes.length === 0
+                  ? 'Sin vacantes esperando revisión'
+                  : vacantes.length === 1
+                    ? '1 vacante espera revisión'
+                    : `${vacantes.length} vacantes esperan revisión`}
+            </p>
+          </div>
 
-        {/* --- VISOR DE ACTIVIDAD --- */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-            <div className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Total Usuarios</div>
-            <div className="text-3xl font-black text-gray-800 flex items-center gap-2">👥 {metricas.total_usuarios}</div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-            <div className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Empresas Activas</div>
-            <div className="text-3xl font-black text-gray-800 flex items-center gap-2">🏢 {metricas.total_empresas}</div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-            <div className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Vacantes Públicas</div>
-            <div className="text-3xl font-black text-gray-800 flex items-center gap-2">💼 {metricas.vacantes_activas}</div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500">
-            <div className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Flujo Postulaciones</div>
-            <div className="text-3xl font-black text-gray-800 flex items-center gap-2">🚀 {metricas.total_postulaciones}</div>
-          </div>
+          <Link to="/vacantes">
+            <Button variant="ghost" tone="dark">
+              <ArrowLeft size={15} strokeWidth={1.8} />
+              Muro público
+            </Button>
+          </Link>
         </div>
+      </header>
 
-        {/* --- SISTEMA DE PESTAÑAS (TABS) --- */}
-        <div className="flex flex-wrap gap-4 mb-6 border-b border-gray-200">
-          <button onClick={() => setActiveTab('vacantes')} className={`pb-4 px-4 text-lg font-bold transition ${activeTab === 'vacantes' ? 'text-talenthub-blue border-b-4 border-talenthub-blue' : 'text-gray-400 hover:text-gray-600'}`}>
-            📋 Cola ({vacantes.length})
-          </button>
-          <button onClick={() => setActiveTab('usuarios')} className={`pb-4 px-4 text-lg font-bold transition ${activeTab === 'usuarios' ? 'text-talenthub-blue border-b-4 border-talenthub-blue' : 'text-gray-400 hover:text-gray-600'}`}>
-            🕵️‍♂️ Usuarios ({usuarios.length})
-          </button>
-          <button onClick={() => setActiveTab('historial')} className={`pb-4 px-4 text-lg font-bold transition ${activeTab === 'historial' ? 'text-talenthub-blue border-b-4 border-talenthub-blue' : 'text-gray-400 hover:text-gray-600'}`}>
-            📚 Historial Vacantes
-          </button>
-          <button onClick={() => setActiveTab('stack')} className={`pb-4 px-4 text-lg font-bold transition ${activeTab === 'stack' ? 'text-talenthub-blue border-b-4 border-talenthub-blue' : 'text-gray-400 hover:text-gray-600'}`}>
-            💻 Stack Oficial ({tecnologias.length})
-          </button>
-        </div>
-
-        {/* --- CONTENIDO DE PESTAÑAS --- */}
-        
-        {/* PESTAÑA 1: VACANTES */}
-        {activeTab === 'vacantes' && (
-          vacantes.length === 0 ? (
-            <div className="bg-white rounded-xl shadow p-12 text-center">
-              <h2 className="text-2xl font-bold text-gray-400">¡Todo limpio por aquí! 🎉</h2>
+      <div className="mx-auto max-w-page px-6 pb-20 md:px-7">
+        {/* ── Métricas en glass, montadas sobre la banda ── */}
+        <div className="glass-panel glass-panel-overlap-sm edge-l mb-8 grid grid-cols-2 gap-px overflow-hidden sm:grid-cols-4">
+          {METRICAS.map(({ label, total }) => (
+            <div key={label} className="px-6 py-7">
+              <CountUp
+                to={total}
+                className="tabular block text-[1.75rem] font-mid leading-none tracking-[-0.03em] text-ink"
+              />
+              <p className="mt-2 text-[0.8125rem] text-muted">{label}</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {vacantes.map((vacante) => (
-                <div key={vacante.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-                  <div className="bg-yellow-50 p-4 border-b border-yellow-100 flex justify-between items-center">
-                    <span className="bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">En Revisión</span>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-2xl font-bold text-gray-800 mb-1">{vacante.titulo}</h3>
-                    <p className="text-talenthub-blue font-semibold text-lg mb-4">🏢 {vacante.empresa_nombre}</p>
-                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                      <p className="text-sm text-gray-700 font-medium line-clamp-3">{vacante.descripcion}</p>
-                    </div>
-                    <div className="flex gap-3 pt-4 border-t border-gray-100">
-                      <button onClick={() => handleValidacion(vacante.id, 'aprobar')} className="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600 transition shadow-md">✅ APROBAR</button>
-                      <button onClick={() => handleValidacion(vacante.id, 'rechazar')} className="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600 transition shadow-md">❌ RECHAZAR</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        )}
+          ))}
+        </div>
 
-        {/* PESTAÑA 2: USUARIOS */}
-        {activeTab === 'usuarios' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-x-auto border border-gray-200">
-            {/* AGREGAMOS min-w-[800px] AQUÍ */}
-            <table className="min-w-[800px] w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Usuario</th>
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Rol</th>
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Estado</th>
-                  <th className="py-4 px-6 font-bold text-center whitespace-nowrap">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="text-gray-600 text-sm font-medium">
-                {usuarios.map((u) => (
-                  <tr key={u.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-4 px-6 font-bold text-gray-800">{u.username}</td>
-                    <td className="py-4 px-6"><span className="uppercase text-xs font-bold">{u.tipo}</span></td>
-                    <td className="py-4 px-6">{u.is_active ? '🟢 Activo' : '🔴 Suspendido'}</td>
-                    <td className="py-4 px-6 text-center">
-                      <button onClick={() => handleSuspender(u)} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition ${u.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
-                        {u.is_active ? 'Bloquear' : 'Reactivar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {estado === 'error' ? (
+          <EmptyState
+            title="No pudimos cargar el panel"
+            description="La conexión con el servidor falló. Puede ser temporal."
+            action={
+              <Button variant="primary" onClick={cargarTodo}>
+                <RotateCcw size={15} strokeWidth={1.8} />
+                Reintentar
+              </Button>
+            }
+          />
+        ) : estado === 'cargando' ? (
+          <SkeletonList count={3} />
+        ) : (
+          <>
+            <Tabs
+              name="validador"
+              label="Secciones del centro de validación"
+              items={PESTANAS}
+              value={tab}
+              onChange={(id) => setTab(id as Pestana)}
+              className="mb-8"
+            />
 
-        {/* PESTAÑA 3: HISTORIAL */}
-        {activeTab === 'historial' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-x-auto border border-gray-200">
-            <table className="min-w-[900px] w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Empresa</th>
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Título de la Vacante</th>
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Fecha</th>
-                  <th className="py-4 px-6 font-bold whitespace-nowrap">Estado Validador</th>
-                  <th className="py-4 px-6 font-bold text-center whitespace-nowrap">Estatus Empresa</th>
-                </tr>
-              </thead>
-              <tbody className="text-gray-600 text-sm font-medium">
-                {historial.map((h) => (
-                  <tr key={h.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-4 px-6 font-bold text-gray-800">🏢 {h.empresa_nombre}</td>
-                    <td className="py-4 px-6">{h.titulo}</td>
-                    <td className="py-4 px-6">{new Date(h.fecha_publicacion).toLocaleDateString('es-MX')}</td>
-                    <td className="py-4 px-6">
-                      {h.estado_validacion === 'aprobada' ? (
-                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold text-xs uppercase">Aprobada</span>
-                      ) : (
-                        <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full font-bold text-xs uppercase">Rechazada</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      {h.activa ? (
-                        <span className="text-blue-600 font-bold">Abierta</span>
-                      ) : (
-                        <span className="text-gray-500 font-bold">Cerrada</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {historial.length === 0 && (
-              <div className="p-8 text-center text-gray-500 font-medium">
-                No hay historial de vacantes procesadas aún.
-              </div>
-            )}
-          </div>
-        )}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: DUR.base, ease: EASE }}
+              >
+                {/* ───────────── Cola de revisión ───────────── */}
+                {tab === 'vacantes' && (
+                  <div {...panelProps('vacantes')}>
+                    {vacantes.length === 0 ? (
+                      <EmptyState
+                        title="La cola está vacía"
+                        description="Cuando una empresa publique algo nuevo, aparecerá aquí para su revisión."
+                      />
+                    ) : (
+                      <motion.div
+                        variants={stagger(0.07)}
+                        initial="hidden"
+                        animate="show"
+                        className="grid grid-cols-1 gap-[18px] lg:grid-cols-2"
+                      >
+                        {vacantes.map((v) => (
+                          <motion.div key={v.id} variants={rise}>
+                            <Card className="flex h-full flex-col">
+                              <div className="mb-4 flex items-start justify-between gap-4">
+                                <div>
+                                  <h2 className="text-sub font-demi leading-snug text-ink">
+                                    {v.titulo}
+                                  </h2>
+                                  <p className="mt-1 text-[0.875rem] text-muted">{v.empresa_nombre}</p>
+                                </div>
+                                <Tag tono="curso">En revisión</Tag>
+                              </div>
 
-        {/* PESTAÑA 4: CATÁLOGO DE TECNOLOGÍAS (Punto 1.9) */}
-        {activeTab === 'stack' && (
-          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
-            <div className="flex flex-col md:flex-row gap-8">
-              
-              <div className="md:w-1/3">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Agregar Tecnología</h2>
-                <form onSubmit={handleAddTech} className="flex flex-col gap-3">
-                  <input 
-                    type="text" 
-                    value={nuevaTech} 
-                    onChange={(e) => setNuevaTech(e.target.value)}
-                    placeholder="Ej. Python, React, Docker..." 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                  />
-                  <button type="submit" className="bg-talenthub-blue text-white py-2 rounded-lg font-bold shadow hover:bg-blue-700 transition">
-                    ➕ Añadir al Catálogo
-                  </button>
-                </form>
-                <div className="mt-6 bg-blue-50 p-4 rounded-lg border-l-4 border-talenthub-blue">
-                  <p className="text-sm text-gray-600 font-medium">Este catálogo es el listado oficial de herramientas que las empresas y aspirantes pueden usar en la plataforma.</p>
-                </div>
-              </div>
+                              {v.descripcion && (
+                                <p className="mb-5 line-clamp-4 text-[0.90625rem] leading-relaxed text-ink-2">
+                                  {v.descripcion}
+                                </p>
+                              )}
 
-              <div className="md:w-2/3">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Stack Oficial Registrado</h2>
-                {tecnologias.length === 0 ? (
-                  <p className="text-gray-500 italic">No hay tecnologías registradas. ¡Agrega la primera!</p>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {tecnologias.map(t => (
-                      <div key={t.id} className="bg-gray-100 border border-gray-200 px-4 py-2 rounded-full flex items-center gap-3 shadow-sm">
-                        <span className="font-bold text-gray-700">{t.nombre}</span>
-                        <button onClick={() => handleDeleteTech(t.id)} className="text-red-500 hover:text-red-700 font-bold bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm">
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                              <div className="mt-auto flex flex-wrap gap-2.5 border-t border-hairline pt-[18px]">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="!text-ok hover:border-ok/40"
+                                  onClick={() => handleValidacion(v, 'aprobar')}
+                                >
+                                  <Check size={14} strokeWidth={2} />
+                                  Aprobar
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="!text-danger hover:border-danger/40"
+                                  onClick={() => handleValidacion(v, 'rechazar')}
+                                >
+                                  <X size={14} strokeWidth={1.8} />
+                                  Rechazar
+                                </Button>
+                                <p className="tabular ml-auto self-center text-[0.8125rem] text-muted">
+                                  {FECHA.format(new Date(v.fecha_publicacion))}
+                                </p>
+                              </div>
+                            </Card>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
                   </div>
                 )}
-              </div>
 
-            </div>
-          </div>
+                {/* ───────────── Cuentas ───────────── */}
+                {tab === 'usuarios' && (
+                  <div {...panelProps('usuarios')}>
+                    {usuarios.length === 0 ? (
+                      <EmptyState title="Todavía no hay cuentas registradas" />
+                    ) : (
+                      // Filas OPACAS a propósito: `backdrop-filter` por fila
+                      // obliga al navegador a recomponer la pila entera en cada
+                      // scroll. El glass se queda en el chrome. Ver DESIGN.md §7.
+                      <div className="overflow-x-auto rounded-card border border-hairline bg-canvas">
+                        <table className="w-full min-w-[640px] border-collapse text-left">
+                          <thead>
+                            <tr className="border-b border-hairline">
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Cuenta
+                              </th>
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Rol
+                              </th>
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Estado
+                              </th>
+                              <th className="px-6 py-4 text-right text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Acción
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {usuarios.map((u) => (
+                              <tr
+                                key={u.id}
+                                className="border-b border-hairline transition-colors duration-150 last:border-0 hover:bg-surface"
+                              >
+                                <td className="px-6 py-4">
+                                  <p className="font-mid text-ink">{u.username}</p>
+                                  <p className="text-[0.8125rem] text-muted">{u.email}</p>
+                                </td>
+                                <td className="px-6 py-4 text-[0.875rem] capitalize text-ink-2">{u.tipo}</td>
+                                <td className="px-6 py-4">
+                                  <Tag tono={u.is_active ? 'bien' : 'mal'}>
+                                    {u.is_active ? 'Activa' : 'Suspendida'}
+                                  </Tag>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={
+                                      u.is_active
+                                        ? '!text-danger hover:border-danger/40'
+                                        : '!text-ok hover:border-ok/40'
+                                    }
+                                    onClick={() => handleSuspender(u)}
+                                  >
+                                    {u.is_active ? (
+                                      <Ban size={14} strokeWidth={1.8} />
+                                    ) : (
+                                      <RotateCcw size={14} strokeWidth={1.8} />
+                                    )}
+                                    {u.is_active ? 'Suspender' : 'Reactivar'}
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ───────────── Historial ───────────── */}
+                {tab === 'historial' && (
+                  <div {...panelProps('historial')}>
+                    {historial.length === 0 ? (
+                      <EmptyState
+                        title="Sin historial todavía"
+                        description="Aquí queda registro de cada vacante que apruebes o rechaces."
+                      />
+                    ) : (
+                      <div className="overflow-x-auto rounded-card border border-hairline bg-canvas">
+                        <table className="w-full min-w-[760px] border-collapse text-left">
+                          <thead>
+                            <tr className="border-b border-hairline">
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Vacante
+                              </th>
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Fecha
+                              </th>
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                Resolución
+                              </th>
+                              <th className="px-6 py-4 text-caption font-mid uppercase tracking-[0.06em] text-muted">
+                                En el muro
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {historial.map((h) => (
+                              <tr
+                                key={h.id}
+                                className="border-b border-hairline transition-colors duration-150 last:border-0 hover:bg-surface"
+                              >
+                                <td className="px-6 py-4">
+                                  <p className="font-mid text-ink">{h.titulo}</p>
+                                  <p className="text-[0.8125rem] text-muted">{h.empresa_nombre}</p>
+                                </td>
+                                <td className="tabular px-6 py-4 text-[0.875rem] text-ink-2">
+                                  {FECHA.format(new Date(h.fecha_publicacion))}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <Tag tono={h.estado_validacion === 'aprobada' ? 'bien' : 'mal'}>
+                                    {h.estado_validacion === 'aprobada' ? 'Aprobada' : 'Rechazada'}
+                                  </Tag>
+                                </td>
+                                <td className="px-6 py-4 text-[0.875rem] text-muted">
+                                  {h.activa ? 'Visible' : 'Cerrada'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ───────────── Catálogo de tecnologías ───────────── */}
+                {tab === 'stack' && (
+                  <div {...panelProps('stack')} className="grid grid-cols-1 gap-[18px] lg:grid-cols-[340px_1fr]">
+                    <Card>
+                      <h2 className="mb-2 text-sub font-demi text-ink">Agregar tecnología</h2>
+                      <p className="mb-5 text-[0.875rem] leading-relaxed text-muted">
+                        Este catálogo es la lista cerrada de la que eligen empresas y aspirantes. Lo que
+                        no esté aquí, no se puede etiquetar.
+                      </p>
+
+                      <form onSubmit={handleAddTech} className="flex flex-col gap-3">
+                        <label htmlFor="nueva-tech" className="sr-only">
+                          Nombre de la tecnología
+                        </label>
+                        <Input
+                          id="nueva-tech"
+                          value={nuevaTech}
+                          onChange={(e) => setNuevaTech(e.target.value)}
+                          placeholder="React, Django, Docker…"
+                        />
+                        <Button type="submit" variant="accent" disabled={!nuevaTech.trim()}>
+                          <Plus size={15} strokeWidth={1.8} />
+                          Añadir al catálogo
+                        </Button>
+                      </form>
+                    </Card>
+
+                    <Card>
+                      <div className="mb-5 flex items-baseline justify-between gap-4">
+                        <h2 className="text-sub font-demi text-ink">Stack oficial</h2>
+                        <span className="tabular text-[0.8125rem] text-muted">
+                          {tecnologias.length} {tecnologias.length === 1 ? 'entrada' : 'entradas'}
+                        </span>
+                      </div>
+
+                      {tecnologias.length === 0 ? (
+                        <p className="text-[0.9375rem] text-muted">
+                          El catálogo está vacío. La primera que agregues aparecerá aquí.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          <AnimatePresence initial={false}>
+                            {tecnologias.map((t) => (
+                              <motion.span
+                                key={t.id}
+                                layout
+                                initial={{ opacity: 0, scale: 0.85 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.85 }}
+                                transition={{ duration: DUR.fast, ease: EASE }}
+                                className="inline-flex items-center gap-1.5 rounded-pill border border-hairline py-1 pl-3.5 pr-1.5 text-[0.875rem] text-ink-2"
+                              >
+                                {t.nombre}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteTech(t)}
+                                  aria-label={`Quitar ${t.nombre} del catálogo`}
+                                  className="flex h-6 w-6 items-center justify-center rounded-pill text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                                >
+                                  <X size={13} strokeWidth={2} />
+                                </button>
+                              </motion.span>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </>
         )}
-
       </div>
     </div>
   );
