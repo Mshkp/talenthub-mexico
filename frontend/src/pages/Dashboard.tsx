@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Plus, X, Pencil, EyeOff, RotateCcw, ExternalLink, Trash2, Check } from 'lucide-react';
 import api from '../services/api';
-// Importamos nuestras nuevas alertas globales
 import { showSuccess, showError, showConfirm } from '../utils/alerts';
+import { Button, Card, EmptyState, Field, Input, Select, Textarea, SkeletonList, Tag } from '../components/ui';
+import type { TagTono } from '../components/ui';
+import { rise, stagger, EASE, DUR } from '../lib/motion';
 
 interface Vacante {
   id: number;
@@ -17,44 +21,38 @@ interface Vacante {
   estado_validacion: string;
 }
 
+const MXN = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+
+const FORM_VACIO = {
+  titulo: '',
+  descripcion: '',
+  salario_min: '',
+  salario_max: '',
+  modalidad: 'remoto',
+  ubicacion: '',
+  tecnologias: '',
+  experiencia: '',
+  otros_requisitos: '',
+  activa: true,
+};
+
+/** Estado de la vacante ante el validador y ante el público. */
+const estadoDe = (v: Vacante): { label: string; tono: TagTono } => {
+  if (v.estado_validacion === 'pendiente') return { label: 'En revisión', tono: 'curso' };
+  if (v.estado_validacion === 'rechazada') return { label: 'Rechazada', tono: 'mal' };
+  return v.activa ? { label: 'Publicada', tono: 'bien' } : { label: 'Cerrada', tono: 'neutro' };
+};
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [vacantes, setVacantes] = useState<Vacante[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    titulo: '',
-    descripcion: '',
-    salario_min: '',
-    salario_max: '',
-    modalidad: 'remoto',
-    ubicacion: '',
-    tecnologias: '',
-    experiencia: '',
-    otros_requisitos: '',
-    activa: true
-  });
+  const [guardando, setGuardando] = useState(false);
+  const [formData, setFormData] = useState(FORM_VACIO);
 
-  useEffect(() => {
-    const userTipo = localStorage.getItem("user_tipo");
-
-    if (!localStorage.getItem("token")) {
-      showError("Debes iniciar sesión para ver esto");
-      navigate("/login");
-      return;
-    }
-
-    if (userTipo !== "empresa") {
-      showError("Solo las empresas pueden acceder al dashboard");
-      navigate("/vacantes");
-      return;
-    }
-
-    fetchVacantes();
-  }, [navigate]);
-
-  const fetchVacantes = async () => {
+  const fetchVacantes = useCallback(async () => {
     try {
       const userId = localStorage.getItem('user_id');
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
@@ -64,55 +62,83 @@ const Dashboard: React.FC = () => {
         const response = await api.get(`/vacantes/?empresa=${empresaId}`);
         setVacantes(response.data);
       } else {
-        console.warn("Este usuario no tiene un perfil en la tabla Empresa");
+        console.warn('Este usuario no tiene un perfil en la tabla Empresa');
         setVacantes([]);
       }
-      
-      setLoading(false);
+      setEstado('listo');
     } catch (error) {
       console.error('Error:', error);
-      setLoading(false);
+      setEstado('error');
     }
+  }, []);
+
+  useEffect(() => {
+    const userTipo = localStorage.getItem('user_tipo');
+
+    if (!localStorage.getItem('token')) {
+      showError('Inicia sesión para ver tu dashboard.', 'Falta un paso');
+      navigate('/login');
+      return;
+    }
+    if (userTipo !== 'empresa') {
+      showError('El dashboard es solo para empresas.', 'Sin acceso');
+      navigate('/vacantes');
+      return;
+    }
+    fetchVacantes();
+  }, [navigate, fetchVacantes]);
+
+  const resumen = useMemo(
+    () => [
+      { label: 'Publicadas', total: vacantes.filter((v) => v.estado_validacion === 'aprobada' && v.activa).length },
+      { label: 'En revisión', total: vacantes.filter((v) => v.estado_validacion === 'pendiente').length },
+      { label: 'Cerradas', total: vacantes.filter((v) => v.estado_validacion === 'aprobada' && !v.activa).length },
+      { label: 'Rechazadas', total: vacantes.filter((v) => v.estado_validacion === 'rechazada').length },
+    ],
+    [vacantes]
+  );
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const limpiarForm = () => setFormData(FORM_VACIO);
+
+  const cerrarForm = () => {
+    setShowForm(false);
+    setEditando(null);
+    limpiarForm();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // === NUEVO: BLOQUEO DE VACANTES RECHAZADAS ===
+    // Una vacante rechazada no se puede editar: el backend la rebota, así que
+    // paramos aquí para dar un mensaje claro en vez de un error genérico.
     if (editando) {
-      const vacanteOriginal = vacantes.find(v => v.id === editando);
-      if (vacanteOriginal && vacanteOriginal.estado_validacion === 'rechazada') {
-        showError(
-          'Esta vacante fue rechazada por el validador y no puede ser modificada.', 
-          'Actualización Bloqueada'
-        );
-        return; // Detenemos la función aquí para que no lance el error del backend
+      const original = vacantes.find((v) => v.id === editando);
+      if (original?.estado_validacion === 'rechazada') {
+        showError('Fue rechazada por el validador y ya no se puede modificar.', 'Vacante bloqueada');
+        return;
       }
     }
-    // ===============================================
 
+    setGuardando(true);
     try {
       const userId = localStorage.getItem('user_id');
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
       if (!empresaResponse.data || empresaResponse.data.length === 0) {
-        showError("Tu usuario no tiene un perfil de Empresa. Por favor, crea una CUENTA NUEVA desde la página de Registro para que se genere correctamente.");
+        showError(
+          'Tu usuario no tiene perfil de empresa. Crea una cuenta nueva desde Registro para generarlo.',
+          'Falta el perfil de empresa'
+        );
+        setGuardando(false);
         return;
       }
 
       const empresaId = empresaResponse.data[0].id;
-      const tecnologiasArray = formData.tecnologias.split(',').map(t => t.trim()).filter(t => t);
-      const requisitosObj = {
-        lenguajes: tecnologiasArray,
-        experiencia: formData.experiencia,
-        otros: formData.otros_requisitos
-      };
       const dataToSend = {
         titulo: formData.titulo,
         descripcion: formData.descripcion,
@@ -120,32 +146,34 @@ const Dashboard: React.FC = () => {
         salario_max: formData.salario_max,
         modalidad: formData.modalidad,
         ubicacion: formData.ubicacion,
-        requisitos: requisitosObj,
-        activa: editando ? formData.activa : false, 
-        empresa: empresaId
+        requisitos: {
+          lenguajes: formData.tecnologias.split(',').map((t) => t.trim()).filter(Boolean),
+          experiencia: formData.experiencia,
+          otros: formData.otros_requisitos,
+        },
+        activa: editando ? formData.activa : false,
+        empresa: empresaId,
       };
+
       if (editando) {
         await api.put(`/vacantes/${editando}/`, dataToSend);
-        showSuccess('Vacante actualizada exitosamente');
+        showSuccess('Los cambios ya están guardados.', 'Vacante actualizada');
       } else {
         await api.post('/vacantes/', dataToSend);
-        showSuccess('Vacante creada', 'Está pendiente de validación por un administrador.');
+        showSuccess('Queda pendiente de validación por un administrador.', 'Vacante creada');
       }
 
-      setShowForm(false);
-      setEditando(null);
-      limpiarForm();
+      cerrarForm();
       fetchVacantes();
     } catch (error: any) {
       console.error('Error:', error);
-      showError(error.response?.data?.detail || 'Intenta de nuevo', 'Error al guardar');
+      showError(error.response?.data?.detail || 'Inténtalo de nuevo.', 'No se pudo guardar');
+    } finally {
+      setGuardando(false);
     }
   };
 
   const handleEdit = (vacante: Vacante) => {
-    const tecnologias = vacante.requisitos?.lenguajes ? vacante.requisitos.lenguajes.join(', ') : '';
-    const experiencia = vacante.requisitos?.experiencia || '';
-    const otros = vacante.requisitos?.otros || '';
     setFormData({
       titulo: vacante.titulo,
       descripcion: vacante.descripcion,
@@ -153,244 +181,368 @@ const Dashboard: React.FC = () => {
       salario_max: vacante.salario_max,
       modalidad: vacante.modalidad,
       ubicacion: vacante.ubicacion,
-      tecnologias: tecnologias,
-      experiencia: experiencia,
-      otros_requisitos: otros,
-      activa: vacante.activa
+      tecnologias: vacante.requisitos?.lenguajes ? vacante.requisitos.lenguajes.join(', ') : '',
+      experiencia: vacante.requisitos?.experiencia || '',
+      otros_requisitos: vacante.requisitos?.otros || '',
+      activa: vacante.activa,
     });
     setEditando(vacante.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
-    const confirmado = await showConfirm('¿Estás seguro de eliminar esta vacante?', 'Borrar Vacante');
-    if (!confirmado) return;
+    const ok = await showConfirm(
+      'Se eliminará de forma permanente junto con sus postulaciones.',
+      '¿Eliminar esta vacante?',
+      { confirmLabel: 'Sí, eliminar', destructive: true }
+    );
+    if (!ok) return;
 
     try {
       await api.delete(`/vacantes/${id}/`);
-      showSuccess('La vacante ha sido eliminada');
+      showSuccess('La vacante ya no existe.', 'Vacante eliminada');
       fetchVacantes();
     } catch (error) {
-      showError('No se pudo eliminar la vacante');
+      showError('No se pudo eliminar la vacante.');
     }
   };
 
   const handleReabrir = async (id: number) => {
-    const confirmado = await showConfirm('¿Deseas volver a publicar esta vacante? Será visible para los aspirantes nuevamente.', 'Reabrir Vacante');
-    if (!confirmado) return;
+    const ok = await showConfirm(
+      'Volverá a ser visible para los aspirantes.',
+      '¿Reabrir esta vacante?',
+      { confirmLabel: 'Sí, reabrir', destructive: false }
+    );
+    if (!ok) return;
 
     try {
       const userId = localStorage.getItem('user_id');
       const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
-      if (empresaResponse.data && empresaResponse.data.length > 0) {
+      if (empresaResponse.data?.length > 0) {
         const empresaId = empresaResponse.data[0].id;
         await api.patch(`/vacantes/${id}/?empresa=${empresaId}`, { activa: true });
-        showSuccess('La vacante está activa de nuevo');
+        showSuccess('Ya es visible para los aspirantes.', 'Vacante reabierta');
         fetchVacantes();
       }
     } catch (error: any) {
-      console.error("Error del backend:", error.response?.data);
-      const mensajeDjango = error.response?.data?.detail || JSON.stringify(error.response?.data) || 'Revisa la consola';
-      showError(`Motivo: ${mensajeDjango}`, 'No se pudo reabrir');
+      console.error('Error del backend:', error.response?.data);
+      const motivo = error.response?.data?.detail || 'Revisa la consola para el detalle.';
+      showError(motivo, 'No se pudo reabrir');
     }
   };
 
   const handleCerrar = async (id: number) => {
-    const confirmado = await showConfirm('¿Estás seguro de cerrar esta vacante? Ya no aparecerá a los aspirantes.', 'Cerrar Vacante');
-    if (!confirmado) return;
+    const ok = await showConfirm(
+      'Dejará de aparecer a los aspirantes, pero conservarás sus postulaciones.',
+      '¿Cerrar esta vacante?',
+      { confirmLabel: 'Sí, cerrar', destructive: false }
+    );
+    if (!ok) return;
 
     try {
       await api.patch(`/vacantes/${id}/`, { activa: false });
-      showSuccess('Vacante cerrada administrativamente');
+      showSuccess('Ya no aparece en el listado público.', 'Vacante cerrada');
       fetchVacantes();
     } catch (error) {
-      showError('Hubo un error al cerrar la vacante');
+      showError('Hubo un error al cerrar la vacante.');
     }
   };
 
-  const limpiarForm = () => {
-    setFormData({
-      titulo: '',
-      descripcion: '',
-      salario_min: '',
-      salario_max: '',
-      modalidad: 'remoto',
-      ubicacion: '',
-      tecnologias: '',
-      experiencia: '',
-      otros_requisitos: '',
-      activa: true
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-talenthub-gray">Cargando...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow">
-        <div className="flex justify-between items-center mb-8">
+    <div className="min-h-screen mesh-page">
+      {/* ── Banda oscura ── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[140px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-52 left-1/2 -z-10 h-[560px] w-[1000px] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.15),transparent_74%)] blur-[6px]"
+        />
+        <div className="relative mx-auto flex max-w-page flex-wrap items-end justify-between gap-6 px-6 md:px-7">
           <div>
-            <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
-              Dashboard - Mis Vacantes
+            <p className="mb-4 text-caption uppercase tracking-[0.06em] text-muted-d">Empresa</p>
+            <h1 className="font-heading text-[clamp(2rem,4.4vw,3rem)] font-mid leading-none tracking-[-0.035em]">
+              Mis vacantes
             </h1>
-          
-            <p className="text-gray-600">{vacantes.length} vacantes publicadas</p>
+            <p className="tabular mt-3 text-sub text-ink-2d">
+              {estado === 'listo'
+                ? vacantes.length === 1
+                  ? '1 vacante publicada'
+                  : `${vacantes.length} vacantes publicadas`
+                : 'Cargando tus vacantes…'}
+            </p>
           </div>
-          <button
-            onClick={() => {
-              setShowForm(!showForm);
-              setEditando(null);
-              limpiarForm();
-            }}
-       
-             className="bg-talenthub-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+
+          <Button
+            variant={showForm ? 'ghost' : 'primary'}
+            tone="dark"
+            onClick={() => (showForm ? cerrarForm() : setShowForm(true))}
           >
-            {showForm ? 'Cancelar' : '+ Nueva Vacante'}
-          </button>
+            {showForm ? <X size={16} strokeWidth={1.8} /> : <Plus size={16} strokeWidth={1.8} />}
+            {showForm ? 'Cancelar' : 'Nueva vacante'}
+          </Button>
         </div>
+      </header>
 
-        {showForm && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold text-talenthub-gray mb-6">
- 
-              {editando ? 'Editar Vacante' : 'Nueva Vacante'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Título del puesto *</label>
-          
-                  <input type="text" name="titulo" value={formData.titulo} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Ubicación *</label>
-                  <input type="text" name="ubicacion" value={formData.ubicacion} 
- onChange={handleChange} placeholder="Ciudad de México" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-                </div>
+      <div className="mx-auto max-w-page px-6 pb-20 md:px-7">
+        {/* ── Resumen en glass, montado sobre la banda ── */}
+        {estado === 'listo' && vacantes.length > 0 && (
+          <div className="glass-panel glass-panel-overlap-sm edge-l mb-8 grid grid-cols-2 gap-px overflow-hidden sm:grid-cols-4">
+            {resumen.map(({ label, total }) => (
+              <div key={label} className="px-6 py-7">
+                <p className="tabular text-[1.75rem] font-mid leading-none tracking-[-0.03em] text-ink">
+                  {total}
+                </p>
+                <p className="mt-2 text-[0.8125rem] text-muted">{label}</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción *</label>
-                <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} rows={4} 
- className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Salario Mínimo (MXN) *</label>
-                 
-                  <input type="number" name="salario_min" value={formData.salario_min} onChange={handleChange} placeholder="30000" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Salario Máximo (MXN) *</label>
-                  <input type="number" name="salario_max" value={formData.salario_max} onChange={handleChange} placeholder="50000" className="w-full px-4 
- py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Modalidad *</label>
-                  <select name="modalidad" value={formData.modalidad} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required>
-       
-                     <option value="remoto">Remoto</option>
-                    <option value="presencial">Presencial</option>
-                    <option value="hibrido">Híbrido</option>
-                  </select>
-                </div>
-          
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Tecnologías requeridas *</label>
-                <input type="text" name="tecnologias" value={formData.tecnologias} onChange={handleChange} placeholder="React, Node.js, Python, PostgreSQL" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-                <p className="text-xs text-gray-500 mt-1">Separa las tecnologías con comas</p>
-  
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Experiencia requerida *</label>
-                <input type="text" name="experiencia" value={formData.experiencia} onChange={handleChange} placeholder="2-3 años de experiencia" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" required />
-              </div>
-
-   
-               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Otros requisitos (opcional)</label>
-                <textarea name="otros_requisitos" value={formData.otros_requisitos} onChange={handleChange} rows={3} placeholder="Inglés intermedio, disponibilidad para viajar, etc."
- className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none" />
-              </div>
-
-              <button type="submit" className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                {editando ? 'Actualizar Vacante' : 'Crear Vacante'}
-              </button>
-            </form>
+            ))}
           </div>
         )}
 
-        <div className="space-y-4">
-          {vacantes.map((vacante) => (
-            <div key={vacante.id} className="bg-white rounded-lg shadow-md p-6">
-              
-              <div className="flex flex-col gap-4 mb-4">
-                <div className="w-full">
-                  <h3 className="text-xl font-bold text-talenthub-gray mb-1 break-words">{vacante.titulo}</h3>
-                  <p className="text-gray-600 mb-2">{vacante.ubicacion} - {vacante.modalidad}</p>
-                  <p className="text-talenthub-blue font-semibold">
-                    ${parseFloat(vacante.salario_min).toLocaleString()} - ${parseFloat(vacante.salario_max).toLocaleString()} MXN
-                  </p>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full border-t sm:border-t-0 pt-4 sm:pt-0 border-gray-100">
-                  <button onClick={() => handleEdit(vacante)} className="w-full sm:w-auto flex-1 bg-blue-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-blue-700 transition text-center shadow-sm">
-                    Editar
-                  </button>
+        <div className={estado === 'listo' && vacantes.length > 0 ? '' : 'relative z-10 -mt-24'}>
+          {/* ── Formulario ── */}
+          <AnimatePresence initial={false}>
+            {showForm && (
+              <motion.div
+                key="form"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: DUR.base, ease: EASE }}
+                className="overflow-hidden"
+              >
+                <Card className="mb-8">
+                  <h2 className="mb-7 text-h3 font-demi text-ink">
+                    {editando ? 'Editar vacante' : 'Nueva vacante'}
+                  </h2>
 
-                  {vacante.estado_validacion === 'pendiente' ? (
-                    <span className="w-full sm:w-auto flex-1 bg-yellow-100 text-yellow-800 px-4 py-3 sm:py-2 rounded-lg font-bold border border-yellow-300 flex items-center justify-center text-center shadow-sm">
-                      ⏳ En revisión
-                    </span>
-                  ) : vacante.estado_validacion === 'rechazada' ? (
-                    <span className="w-full sm:w-auto flex-1 bg-red-100 text-red-800 px-4 py-3 sm:py-2 rounded-lg font-bold border border-red-300 flex items-center justify-center text-center shadow-sm">
-                      ❌ Rechazada
-                    </span>
-                  ) : vacante.activa ? (
-                    <button onClick={() => handleCerrar(vacante.id)} className="w-full sm:w-auto flex-1 bg-yellow-500 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-yellow-600 transition text-center shadow-sm">
-                      Cerrar
-                    </button>
-                  ) : (
-                    <button onClick={() => handleReabrir(vacante.id)} className="w-full sm:w-auto flex-1 bg-green-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-green-700 transition text-center shadow-sm">
-                      Reabrir
-                    </button>
-                  )}
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                      <Field label="Título del puesto" htmlFor="titulo">
+                        <Input id="titulo" name="titulo" value={formData.titulo} onChange={handleChange} required />
+                      </Field>
+                      <Field label="Ubicación" htmlFor="ubicacion">
+                        <Input
+                          id="ubicacion"
+                          name="ubicacion"
+                          value={formData.ubicacion}
+                          onChange={handleChange}
+                          placeholder="Ciudad de México"
+                          required
+                        />
+                      </Field>
+                    </div>
 
-                  <button onClick={() => handleDelete(vacante.id)} className="w-full sm:w-auto flex-1 bg-red-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-red-700 transition text-center shadow-sm">
-                    Eliminar
-                  </button>
-                  
-                  <button onClick={() => navigate(`/vacantes/${vacante.id}`)} className="w-full sm:w-auto flex-1 bg-gray-600 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-gray-700 transition text-center shadow-sm">
-                    Ver
-                  </button>
-                </div>
+                    <Field label="Descripción" htmlFor="descripcion">
+                      <Textarea
+                        id="descripcion"
+                        name="descripcion"
+                        rows={4}
+                        value={formData.descripcion}
+                        onChange={handleChange}
+                        required
+                      />
+                    </Field>
 
-              </div>
-              <p className="text-gray-700 text-sm line-clamp-2">{vacante.descripcion}</p>
-            </div>
-     
-          ))}
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                      <Field label="Salario mínimo" htmlFor="salario_min" hint="En pesos mexicanos">
+                        <Input
+                          id="salario_min"
+                          type="number"
+                          name="salario_min"
+                          value={formData.salario_min}
+                          onChange={handleChange}
+                          placeholder="30000"
+                          required
+                        />
+                      </Field>
+                      <Field label="Salario máximo" htmlFor="salario_max" hint="En pesos mexicanos">
+                        <Input
+                          id="salario_max"
+                          type="number"
+                          name="salario_max"
+                          value={formData.salario_max}
+                          onChange={handleChange}
+                          placeholder="50000"
+                          required
+                        />
+                      </Field>
+                      <Field label="Modalidad" htmlFor="modalidad">
+                        <Select id="modalidad" name="modalidad" value={formData.modalidad} onChange={handleChange} required>
+                          <option value="remoto">Remoto</option>
+                          <option value="presencial">Presencial</option>
+                          <option value="hibrido">Híbrido</option>
+                        </Select>
+                      </Field>
+                    </div>
+
+                    <Field label="Tecnologías requeridas" htmlFor="tecnologias" hint="Sepáralas con comas">
+                      <Input
+                        id="tecnologias"
+                        name="tecnologias"
+                        value={formData.tecnologias}
+                        onChange={handleChange}
+                        placeholder="React, Node.js, Python, PostgreSQL"
+                        required
+                      />
+                    </Field>
+
+                    <Field label="Experiencia requerida" htmlFor="experiencia">
+                      <Input
+                        id="experiencia"
+                        name="experiencia"
+                        value={formData.experiencia}
+                        onChange={handleChange}
+                        placeholder="2-3 años de experiencia"
+                        required
+                      />
+                    </Field>
+
+                    <Field label="Otros requisitos" htmlFor="otros_requisitos" hint="Opcional">
+                      <Textarea
+                        id="otros_requisitos"
+                        name="otros_requisitos"
+                        rows={3}
+                        value={formData.otros_requisitos}
+                        onChange={handleChange}
+                        placeholder="Inglés intermedio, disponibilidad para viajar…"
+                      />
+                    </Field>
+
+                    <div className="flex flex-wrap justify-end gap-3 pt-2">
+                      <Button type="button" variant="ghost" onClick={cerrarForm}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" variant="accent" disabled={guardando}>
+                        <Check size={15} strokeWidth={2} />
+                        {guardando ? 'Guardando…' : editando ? 'Actualizar vacante' : 'Crear vacante'}
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Listado ── */}
+          {estado === 'cargando' && <SkeletonList count={3} />}
+
+          {estado === 'error' && (
+            <EmptyState
+              title="No pudimos cargar tus vacantes"
+              description="El servidor no respondió. Puede ser una caída momentánea o tu conexión."
+              action={
+                <Button variant="ghost" onClick={fetchVacantes}>
+                  <RotateCcw size={14} strokeWidth={1.8} />
+                  Reintentar
+                </Button>
+              }
+            />
+          )}
+
+          {estado === 'listo' && vacantes.length === 0 && !showForm && (
+            <EmptyState
+              title="Todavía no has publicado vacantes"
+              description="Crea la primera para empezar a recibir postulaciones de talento verificado."
+              action={
+                <Button variant="accent" onClick={() => setShowForm(true)}>
+                  <Plus size={15} strokeWidth={1.8} />
+                  Crear mi primera vacante
+                </Button>
+              }
+            />
+          )}
+
+          {estado === 'listo' && vacantes.length > 0 && (
+            <motion.ul
+              variants={stagger(0.06)}
+              initial="hidden"
+              animate="show"
+              className="flex list-none flex-col gap-3.5 p-0"
+            >
+              {vacantes.map((vacante) => {
+                const est = estadoDe(vacante);
+                const rechazada = vacante.estado_validacion === 'rechazada';
+                const pendiente = vacante.estado_validacion === 'pendiente';
+
+                return (
+                  <motion.li key={vacante.id} variants={rise}>
+                    <Card as="article" glass>
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <h2 className="text-[1.3125rem] font-demi tracking-[-0.012em] text-ink">
+                            {vacante.titulo}
+                          </h2>
+                          <p className="mt-1 text-[0.875rem] text-muted">
+                            {vacante.ubicacion} · {vacante.modalidad}
+                          </p>
+                          <p className="tabular mt-2.5 text-[1.03125rem] text-ink">
+                            ${MXN.format(parseFloat(vacante.salario_min))} – $
+                            {MXN.format(parseFloat(vacante.salario_max))} MXN
+                          </p>
+                        </div>
+                        <Tag tono={est.tono}>{est.label}</Tag>
+                      </div>
+
+                      <p className="mt-4 line-clamp-2 max-w-[66ch] text-[0.90625rem] leading-relaxed text-ink-2">
+                        {vacante.descripcion}
+                      </p>
+
+                      {/*
+                        Identidad por FORMA, no por color: un ícono propio cada
+                        acción. Cinco colores distintos volverían al ruido que
+                        quitamos, y además fallan para quien no los distingue.
+                        El violeta marca cuál es la acción principal; el rojo
+                        queda solo para la destructiva, separada a la derecha.
+                      */}
+                      <div className="mt-5 flex flex-wrap gap-2.5 border-t border-hairline pt-5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="!text-accent hover:border-accent/40"
+                          onClick={() => handleEdit(vacante)}
+                          disabled={rechazada}
+                        >
+                          <Pencil size={14} strokeWidth={1.8} />
+                          Editar
+                        </Button>
+
+                        {!pendiente &&
+                          !rechazada &&
+                          (vacante.activa ? (
+                            <Button variant="ghost" size="sm" onClick={() => handleCerrar(vacante.id)}>
+                              <EyeOff size={14} strokeWidth={1.8} />
+                              Cerrar
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" onClick={() => handleReabrir(vacante.id)}>
+                              <RotateCcw size={14} strokeWidth={1.8} />
+                              Reabrir
+                            </Button>
+                          ))}
+
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/vacantes/${vacante.id}`)}>
+                          <ExternalLink size={14} strokeWidth={1.8} />
+                          Ver
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          // El "!" no es capricho: gana a `text-ink` del ghost sin depender
+                          // del orden en que Tailwind genere los colores.
+                          className="ml-auto !text-danger hover:border-danger/40"
+                          onClick={() => handleDelete(vacante.id)}
+                        >
+                          <Trash2 size={14} strokeWidth={1.8} />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </Card>
+                  </motion.li>
+                );
+              })}
+            </motion.ul>
+          )}
         </div>
-
-        {vacantes.length === 0 && !showForm && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <h3 className="text-2xl font-bold text-gray-600 mb-4">No tienes vacantes publicadas</h3>
-            <p className="text-gray-500 mb-6">Crea tu primera vacante para empezar a recibir aplicaciones</p>
-            <button onClick={() => setShowForm(true)} className="bg-talenthub-blue text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-              Crear Primera Vacante
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

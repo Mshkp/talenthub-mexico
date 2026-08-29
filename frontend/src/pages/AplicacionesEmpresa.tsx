@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api, { getMediaUrl } from '../services/api'; // 🔥 Agregamos getMediaUrl
-import { showSuccess, showError } from '../utils/alerts';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, ExternalLink, FileText, Lock, RotateCcw, Search, X } from 'lucide-react';
+import api, { getMediaUrl } from '../services/api';
+import { showError, showSuccess } from '../utils/alerts';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ProcessTrack,
+  SkeletonList,
+} from '../components/ui';
+import type { EstadoPostulacion } from '../components/ui';
+import { cx } from '../lib/cx';
+import { DUR, EASE, rise, stagger } from '../lib/motion';
 
 interface Aplicacion {
   id: number;
@@ -16,266 +28,336 @@ interface Aplicacion {
   usuario_telefono?: string;
 }
 
+const FECHA = new Intl.DateTimeFormat('es-MX', {
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** Los filtros salen de los estados reales del modelo (`empleos/models.py`). */
+const FILTROS: Array<{ id: string; label: string }> = [
+  { id: '', label: 'Todas' },
+  { id: 'pendiente', label: 'Sin abrir' },
+  { id: 'revisado', label: 'En revisión' },
+  { id: 'aceptado', label: 'Aceptadas' },
+  { id: 'rechazado', label: 'Rechazadas' },
+];
+
 const AplicacionesEmpresa: React.FC = () => {
   const navigate = useNavigate();
   const [aplicaciones, setAplicaciones] = useState<Aplicacion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filtroEstado, setFiltroEstado] = useState('');
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
+  const [filtro, setFiltro] = useState('');
+  const [enCurso, setEnCurso] = useState<number | null>(null);
+
+  const fetchAplicaciones = useCallback(async () => {
+    setEstado('cargando');
+    try {
+      const userId = localStorage.getItem('user_id');
+      const empresa = await api.get(`/empresas/?usuario=${userId}`);
+
+      if (empresa.data?.length > 0) {
+        const { data } = await api.get(`/aplicaciones/?empresa=${empresa.data[0].id}`);
+        setAplicaciones(data);
+      } else {
+        setAplicaciones([]);
+      }
+      setEstado('listo');
+    } catch {
+      setEstado('error');
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userTipo = localStorage.getItem('user_tipo');
-    
+
     if (!token) {
-      showError('Debes iniciar sesión para ver tus aplicaciones');
+      showError('Inicia sesión para ver las postulaciones.');
       navigate('/login');
       return;
     }
-    
     if (userTipo !== 'empresa') {
-      showError('Solo las empresas pueden acceder a este panel');
+      showError('Este panel es solo para empresas.');
       navigate('/vacantes');
       return;
     }
-    
+
     fetchAplicaciones();
-  }, [navigate]);
+  }, [navigate, fetchAplicaciones]);
 
-  const fetchAplicaciones = async () => {
-    try {
-      const userId = localStorage.getItem('user_id');
-      const empresaResponse = await api.get(`/empresas/?usuario=${userId}`);
+  const cambiarEstado = async (aplicacion: Aplicacion, nuevoEstado: string) => {
+    setEnCurso(aplicacion.id);
 
-      if (empresaResponse.data && empresaResponse.data.length > 0) {
-        const empresaId = empresaResponse.data[0].id;
-        const response = await api.get(`/aplicaciones/?empresa=${empresaId}`);
-        setAplicaciones(response.data);
-      } else {
-        setAplicaciones([]);
-      }
-      setLoading(false);
-    } catch (error) {
-      console.error('Error:', error);
-      setLoading(false);
-    }
-  };
-
-  const cambiarEstado = async (id: number, nuevoEstado: string) => {
-    try {
-      await api.patch(`/aplicaciones/${id}/`, { estado: nuevoEstado });
-      showSuccess(`Estado cambiado a: ${nuevoEstado.toUpperCase()}`);
-      fetchAplicaciones();
-    } catch (error) {
-      showError('Error al cambiar el estado del candidato');
-    }
-  };
-
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'revisado': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'aceptado': return 'bg-green-100 text-green-800 border-green-300';
-      case 'rechazado': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const aplicacionesFiltradas = filtroEstado 
-    ? aplicaciones.filter(a => a.estado === filtroEstado)
-    : aplicaciones;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-talenthub-gray font-semibold">Cargando aplicaciones...</div>
-      </div>
+    // Optimista: la tarjeta se mueve en el track antes de que responda el
+    // servidor. Si falla, se revierte — es más honesto que un spinner que
+    // congela la fila entera mientras el usuario ya decidió.
+    const previo = aplicacion.estado;
+    setAplicaciones((prev) =>
+      prev.map((a) => (a.id === aplicacion.id ? { ...a, estado: nuevoEstado } : a))
     );
-  }
+
+    try {
+      await api.patch(`/aplicaciones/${aplicacion.id}/`, { estado: nuevoEstado });
+      showSuccess(
+        nuevoEstado === 'aceptado'
+          ? `${aplicacion.usuario_nombre} ya puede ver que avanzó.`
+          : nuevoEstado === 'rechazado'
+            ? 'La persona verá el resultado en su panel.'
+            : 'Ahora puedes ver sus datos de contacto.',
+        nuevoEstado === 'aceptado'
+          ? 'Candidatura aceptada'
+          : nuevoEstado === 'rechazado'
+            ? 'Candidatura rechazada'
+            : 'Marcada en revisión'
+      );
+    } catch {
+      setAplicaciones((prev) =>
+        prev.map((a) => (a.id === aplicacion.id ? { ...a, estado: previo } : a))
+      );
+      showError('No pudimos actualizar la postulación.');
+    } finally {
+      setEnCurso(null);
+    }
+  };
+
+  const conteo = (id: string) =>
+    id === '' ? aplicaciones.length : aplicaciones.filter((a) => a.estado === id).length;
+
+  const visibles = filtro ? aplicaciones.filter((a) => a.estado === filtro) : aplicaciones;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
-              Aplicaciones Recibidas
-            </h1>
-            <p className="text-gray-600 font-medium">{aplicacionesFiltradas.length} aplicaciones</p>
-          </div>
+    <div className="mesh-page min-h-screen">
+      {/* ───────────── Banda oscura ───────────── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[140px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-52 left-1/2 -z-10 h-[560px] w-[1000px] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.15),transparent_74%)] blur-[6px]"
+        />
+        <div className="relative mx-auto max-w-page px-6 md:px-7">
+          <p className="mb-4 text-caption uppercase tracking-[0.06em] text-muted-d">Empresa</p>
+          <h1 className="font-heading text-[clamp(2rem,4.4vw,3rem)] font-mid leading-none tracking-[-0.035em]">
+            Postulaciones recibidas
+          </h1>
+          <p className="tabular mt-3 text-sub text-ink-2d">
+            {estado === 'cargando'
+              ? 'Cargando candidaturas…'
+              : aplicaciones.length === 0
+                ? 'Todavía no llega ninguna'
+                : aplicaciones.length === 1
+                  ? '1 persona ha aplicado a tus vacantes'
+                  : `${aplicaciones.length} personas han aplicado a tus vacantes`}
+          </p>
         </div>
+      </header>
 
-        {/* Filtros */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-lg font-bold text-talenthub-gray mb-4">Filtrar por estado</h2>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setFiltroEstado('')}
-              className={`px-4 py-2 rounded-lg font-semibold transition shadow-sm ${
-                filtroEstado === '' 
-                  ? 'bg-talenthub-blue text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Todas ({aplicaciones.length})
-            </button>
-            <button
-              onClick={() => setFiltroEstado('pendiente')}
-              className={`px-4 py-2 rounded-lg font-semibold transition shadow-sm ${
-                filtroEstado === 'pendiente' 
-                  ? 'bg-yellow-500 text-white' 
-                  : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-              }`}
-            >
-              Pendientes ({aplicaciones.filter(a => a.estado === 'pendiente').length})
-            </button>
-            <button
-              onClick={() => setFiltroEstado('revisado')}
-              className={`px-4 py-2 rounded-lg font-semibold transition shadow-sm ${
-                filtroEstado === 'revisado' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-              }`}
-            >
-              En Revisión ({aplicaciones.filter(a => a.estado === 'revisado').length})
-            </button>
-            <button
-              onClick={() => setFiltroEstado('aceptado')}
-              className={`px-4 py-2 rounded-lg font-semibold transition shadow-sm ${
-                filtroEstado === 'aceptado' 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-green-100 text-green-800 hover:bg-green-200'
-              }`}
-            >
-              Aceptados ({aplicaciones.filter(a => a.estado === 'aceptado').length})
-            </button>
-            <button
-              onClick={() => setFiltroEstado('rechazado')}
-              className={`px-4 py-2 rounded-lg font-semibold transition shadow-sm ${
-                filtroEstado === 'rechazado' 
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-red-100 text-red-800 hover:bg-red-200'
-              }`}
-            >
-              Rechazados ({aplicaciones.filter(a => a.estado === 'rechazado').length})
-            </button>
-          </div>
-        </div>
+      <div className="mx-auto max-w-page px-6 pb-20 md:px-7">
+        {/* ── Filtros en glass, montados sobre la banda ── */}
+        <div className="glass-panel glass-panel-overlap-sm edge-l mb-8 p-6">
+          <p className="mb-4 text-caption uppercase tracking-[0.06em] text-ink-2">Filtrar</p>
+          <div className="flex flex-wrap gap-2">
+            {FILTROS.map(({ id, label }) => {
+              const activo = filtro === id;
+              const total = conteo(id);
 
-        {/* Lista de Aplicaciones */}
-        <div className="space-y-4">
-          {aplicacionesFiltradas.map((aplicacion) => (
-            <div key={aplicacion.id} className={`bg-white rounded-lg shadow-md p-5 border-l-4 ${getEstadoColor(aplicacion.estado)}`}>
-              
-              <div className="flex flex-col gap-4 mb-4">
-                
-                {/* 1. Nombre */}
-                <h3 className="text-xl xs:text-2xl font-bold text-talenthub-gray break-words">
-                  {aplicacion.usuario_nombre}
-                </h3>
-
-                {/* 2. Etiqueta de Estado */}
-                <span className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 shadow-sm whitespace-nowrap self-start ${getEstadoColor(aplicacion.estado)}`}>
-                  {aplicacion.estado.toUpperCase()}
-                </span>
-         
-                {/* 3. Sección de CV - 🔥 FIX: getMediaUrl envuelve la ruta */}
-                <div className="w-full">
-                  {aplicacion.cv_url ? (
-                    <a
-                      href={getMediaUrl(aplicacion.cv_url) || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center bg-gray-100 text-talenthub-blue px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-200 transition border border-gray-300 shadow-sm w-full gap-2"
-                    >
-                      📄 Ver Currículum (CV)
-                    </a>
-                  ) : (
-                    <span className="flex items-center justify-center bg-red-50 text-red-500 px-4 py-2.5 rounded-lg font-bold text-sm border border-red-200 w-full">
-                      ⚠️ CV no proporcionado
-                    </span>
+              return (
+                <button
+                  key={id || 'todas'}
+                  type="button"
+                  onClick={() => setFiltro(id)}
+                  aria-pressed={activo}
+                  // Un filtro no es una pestaña: no cambia de vista, acota la
+                  // lista. Por eso `aria-pressed` y no `role="tab"`.
+                  className={cx(
+                    'relative rounded-pill border px-4 py-2 text-[0.875rem] font-mid',
+                    'transition-colors duration-200 ease-base',
+                    activo
+                      ? 'border-accent bg-accent text-white'
+                      : 'border-hairline text-ink-2 hover:border-hairline-strong hover:bg-black/[0.02]',
+                    total === 0 && !activo && 'opacity-45'
                   )}
-                </div>
-
-                {/* 4. Información de la Vacante y Fecha */}
-                <div className="space-y-1.5 pt-2 border-t border-gray-100">
-                  <p className="text-gray-600 font-medium text-sm">
-                    Aplicó a: <Link to={`/vacantes/${aplicacion.vacante}`} className="text-talenthub-blue hover:underline font-bold">
-                      {aplicacion.vacante_titulo}
-                    </Link>
-                  </p>
-                  <p className="text-xs text-gray-500 font-medium">
-                    📅 {new Date(aplicacion.fecha_aplicacion).toLocaleDateString('es-MX', {
-                      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              {/* === S-SDLC: DATOS DE CONTACTO === */}
-              {(aplicacion.estado === 'aceptado' || aplicacion.estado === 'revisado') ? (
-                <div className="bg-green-50 p-4 rounded-lg mb-4 border border-green-200 mt-4">
-                  <h4 className="font-bold text-green-800 mb-2">📞 Información de Contacto:</h4>
-                  <div className="text-green-900 text-sm flex flex-col gap-1.5">
-                    <p><strong>Email:</strong> {aplicacion.usuario_email || 'No disponible'}</p>
-                    <p><strong>Teléfono:</strong> {aplicacion.usuario_telefono || 'No proporcionado'}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200 text-center mt-4">
-                  <p className="text-gray-500 text-xs font-medium">
-                    🔒 Cambia el estado a "En Revisión" o "Aceptar" para ver los datos de contacto del candidato.
-                  </p>
-                </div>
-              )}
-
-              {/* === ACCIONES: BOTONES RESPONSIVOS === */}
-              <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-4 border-t mt-4">
-                <button
-                  onClick={() => cambiarEstado(aplicacion.id, 'revisado')}
-                  disabled={aplicacion.estado === 'revisado'}
-                  className="w-full sm:w-auto flex-1 bg-blue-500 text-white px-4 py-3 sm:py-2 rounded-lg font-semibold hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm text-center"
                 >
-                  Marcar como Revisado
+                  {label}
+                  <span className={cx('tabular ml-2 text-[0.75rem]', activo ? 'text-white/70' : 'text-muted')}>
+                    {total}
+                  </span>
                 </button>
-                <button
-                  onClick={() => cambiarEstado(aplicacion.id, 'aceptado')}
-                  disabled={aplicacion.estado === 'aceptado'}
-                  className="w-full sm:w-auto flex-1 bg-green-500 text-white px-4 py-3 sm:py-2 rounded-lg font-semibold hover:bg-green-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm text-center"
-                >
-                  ✓ Aceptar
-                </button>
-                <button
-                  onClick={() => cambiarEstado(aplicacion.id, 'rechazado')}
-                  disabled={aplicacion.estado === 'rechazado'}
-                  className="w-full sm:w-auto flex-1 bg-red-500 text-white px-4 py-3 sm:py-2 rounded-lg font-semibold hover:bg-red-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm text-center"
-                >
-                  ✗ Rechazar
-                </button>
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
 
-        {aplicacionesFiltradas.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center border-t-4 border-talenthub-blue mt-4">
-            <h3 className="text-2xl font-bold text-gray-700 mb-4">
-              {filtroEstado ? 'No hay aplicaciones con este estado' : 'No has recibido aplicaciones aún'}
-            </h3>
-            <p className="text-gray-500 mb-6 text-lg">
-              {filtroEstado 
-                ? 'Prueba seleccionando otro filtro'
-                : 'Las aplicaciones a tus vacantes aparecerán aquí'
-              }
-            </p>
-            {filtroEstado && (
-              <button
-                onClick={() => setFiltroEstado('')}
-                className="bg-talenthub-blue text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
-              >
-                Ver todas las aplicaciones
-              </button>
-            )}
-          </div>
+        {estado === 'error' ? (
+          <EmptyState
+            title="No pudimos cargar las postulaciones"
+            description="La conexión con el servidor falló. Puede ser temporal."
+            action={
+              <Button variant="primary" onClick={fetchAplicaciones}>
+                <RotateCcw size={15} strokeWidth={1.8} />
+                Reintentar
+              </Button>
+            }
+          />
+        ) : estado === 'cargando' ? (
+          <SkeletonList count={3} />
+        ) : visibles.length === 0 ? (
+          <EmptyState
+            title={filtro ? 'Ninguna postulación en este estado' : 'Todavía no recibes postulaciones'}
+            description={
+              filtro
+                ? 'Prueba con otro filtro para ver el resto.'
+                : 'Cuando alguien aplique a tus vacantes, su candidatura aparecerá aquí.'
+            }
+            action={
+              filtro ? (
+                <Button variant="ghost" onClick={() => setFiltro('')}>
+                  <Search size={15} strokeWidth={1.8} />
+                  Ver todas
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <motion.div variants={stagger(0.06)} initial="hidden" animate="show" className="flex flex-col gap-[18px]">
+            <AnimatePresence initial={false}>
+              {visibles.map((a) => {
+                // El contacto se abre al pasar a revisión: hasta entonces la
+                // empresa no tiene motivo para tener el teléfono de alguien.
+                const contactoVisible = a.estado === 'revisado' || a.estado === 'aceptado';
+                const resuelta = a.estado === 'aceptado' || a.estado === 'rechazado';
+                const ocupada = enCurso === a.id;
+
+                return (
+                  <motion.div key={a.id} layout variants={rise} exit={{ opacity: 0, scale: 0.98 }}>
+                    <Card className="flex flex-col gap-5">
+                      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+                        <div>
+                          <h2 className="text-h3 font-demi leading-tight text-ink">
+                            {a.usuario_nombre}
+                          </h2>
+                          <p className="mt-1.5 text-[0.9375rem] text-muted">
+                            Aplicó a{' '}
+                            <Link
+                              to={`/vacantes/${a.vacante}`}
+                              className="text-accent transition-opacity hover:opacity-70"
+                            >
+                              {a.vacante_titulo}
+                            </Link>
+                          </p>
+                          <p className="tabular mt-1 text-[0.8125rem] text-muted">
+                            {FECHA.format(new Date(a.fecha_aplicacion))}
+                          </p>
+                        </div>
+
+                        <ProcessTrack estado={a.estado as EstadoPostulacion} className="shrink-0" />
+                      </div>
+
+                      {/* ── CV y contacto ── */}
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {a.cv_url ? (
+                          <a
+                            href={getMediaUrl(a.cv_url) || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2.5 rounded-ui border border-hairline px-4 py-3 text-[0.9375rem] text-ink transition-colors duration-200 hover:border-accent/40 hover:bg-accent/[0.03]"
+                          >
+                            <FileText size={16} strokeWidth={1.7} className="flex-none text-accent" />
+                            Ver currículum
+                            <ExternalLink size={13} strokeWidth={1.8} className="ml-auto flex-none text-muted" />
+                          </a>
+                        ) : (
+                          <p className="flex items-center gap-2.5 rounded-ui border border-dashed border-hairline px-4 py-3 text-[0.9375rem] text-muted">
+                            <FileText size={16} strokeWidth={1.7} className="flex-none" />
+                            Sin currículum adjunto
+                          </p>
+                        )}
+
+                        <AnimatePresence mode="wait" initial={false}>
+                          {contactoVisible ? (
+                            <motion.div
+                              key="contacto"
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }}
+                              transition={{ duration: DUR.fast, ease: EASE }}
+                              className="rounded-ui border border-hairline bg-surface px-4 py-3"
+                            >
+                              <p className="text-[0.9375rem] text-ink">
+                                {a.usuario_email || 'Correo no disponible'}
+                              </p>
+                              <p className="tabular mt-0.5 text-[0.875rem] text-muted">
+                                {a.usuario_telefono || 'Teléfono no proporcionado'}
+                              </p>
+                            </motion.div>
+                          ) : (
+                            <motion.p
+                              key="bloqueado"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: DUR.fast, ease: EASE }}
+                              className="flex items-center gap-2.5 rounded-ui border border-dashed border-hairline px-4 py-3 text-[0.875rem] leading-snug text-muted"
+                            >
+                              <Lock size={15} strokeWidth={1.7} className="flex-none" />
+                              El contacto se abre al marcar en revisión.
+                            </motion.p>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* ── Acciones ── */}
+                      <div className="flex flex-wrap gap-2.5 border-t border-hairline pt-[18px]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={ocupada || a.estado !== 'pendiente'}
+                          onClick={() => cambiarEstado(a, 'revisado')}
+                        >
+                          <Search size={14} strokeWidth={1.8} />
+                          Revisar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="!text-ok hover:border-ok/40"
+                          disabled={ocupada || a.estado === 'aceptado'}
+                          onClick={() => cambiarEstado(a, 'aceptado')}
+                        >
+                          <Check size={14} strokeWidth={2} />
+                          Aceptar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="!text-danger hover:border-danger/40"
+                          disabled={ocupada || a.estado === 'rechazado'}
+                          onClick={() => cambiarEstado(a, 'rechazado')}
+                        >
+                          <X size={14} strokeWidth={1.8} />
+                          Rechazar
+                        </Button>
+
+                        {resuelta && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto"
+                            disabled={ocupada}
+                            onClick={() => cambiarEstado(a, 'revisado')}
+                          >
+                            <RotateCcw size={14} strokeWidth={1.8} />
+                            Reabrir
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
     </div>
