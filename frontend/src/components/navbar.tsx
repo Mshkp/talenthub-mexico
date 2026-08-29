@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { Bell, Menu, X, LogOut } from "lucide-react";
 import api from "../services/api";
-import { Bell, Menu, X } from "lucide-react";
+import { Button } from "./ui";
+import { cx } from "../lib/cx";
+import { EASE, DUR } from "../lib/motion";
 
+/**
+ * Nav flotante oscuro sobre contenido claro.
+ *
+ * Es el componente firma del sistema: en vez de una barra blanca pegada al
+ * borde, un pill oscuro translúcido que flota separado del viewport. Sobre el
+ * hero oscuro se funde; sobre el contenido claro contrasta. Ese cruce es lo
+ * que distingue al sitio de cualquier otro portal claro.
+ *
+ * La lógica de roles, el contador de notificaciones y el menú móvil son los
+ * de siempre — aquí solo cambió la forma.
+ */
 const Navbar: React.FC = () => {
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -12,24 +27,26 @@ const Navbar: React.FC = () => {
   const username = localStorage.getItem("user_username");
   const tipo = localStorage.getItem("user_tipo");
 
-  // Estados
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // <-- ESTADO DEL MENÚ MÓVIL
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (token) {
-      const fetchNotifications = async () => {
-        try {
-          const response = await api.get('/notificaciones/');
-          const unread = response.data.filter((n: any) => !n.leido).length;
-          setUnreadCount(unread);
-        } catch (error) {
-          console.error("Error cargando notificaciones");
-        }
-      };
-      fetchNotifications();
-    }
+    if (!token) return;
+    const fetchNotifications = async () => {
+      try {
+        const response = await api.get("/notificaciones/");
+        setUnreadCount(response.data.filter((n: any) => !n.leido).length);
+      } catch (error) {
+        console.error("Error cargando notificaciones");
+      }
+    };
+    fetchNotifications();
   }, [token, location.pathname]);
+
+  // Cerrar el menú al cambiar de ruta: si no, queda abierto sobre la página nueva.
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const logout = () => {
     localStorage.clear();
@@ -43,113 +60,142 @@ const Navbar: React.FC = () => {
     rutaLogo = tipo === "empresa" ? "/dashboard" : "/vacantes";
   }
 
-  return (
-    <nav className="bg-white shadow-md relative z-50">
-      {/* Añadimos h-full y garantizamos que el flex alinee al centro */}
-      <div className="px-6 md:px-8 py-4 flex justify-between items-center md:h-20">
-        <Link to={rutaLogo} className="text-2xl font-bold text-talenthub-blue">
-          TalentHub México
+  const linkClass = "text-[0.9375rem] text-white/70 transition-colors duration-200 hover:text-white";
+
+  const navLinks = (
+    <>
+      {!isHome && tipo !== "empresa" && tipo !== "validador" && (
+        <Link to="/vacantes" className={linkClass}>
+          Vacantes
         </Link>
+      )}
 
-        {/* BOTÓN HAMBURGUESA (MÓVIL) - Solo visible en pantallas pequeñas */}
-        <button
-          className="md:hidden text-gray-700 hover:text-talenthub-blue focus:outline-none"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-        </button>
+      {tipo === "aspirante" && (
+        <>
+          <Link to="/mi-perfil" className={linkClass}>
+            Mi perfil
+          </Link>
+          <Link to="/mis-aplicaciones" className={linkClass}>
+            Mis postulaciones
+          </Link>
+        </>
+      )}
 
-        {/* CONTENEDOR CENTRAL DE ENLACES (Magia Responsiva) */}
-        <div
-          className={`${
-            isMobileMenuOpen
-              ? "flex flex-col absolute top-full left-0 w-full bg-white shadow-xl py-6 px-8 gap-6 border-t border-gray-100"
-              : "hidden"
-          } md:flex md:static md:flex-row md:shadow-none md:py-0 md:px-0 md:gap-6 md:items-center md:h-full`}
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
-          {!isHome && tipo !== "empresa" && tipo !== "validador" && (
-            <Link to="/vacantes" className="text-gray-700 hover:text-blue-600 font-medium">
-              Vacantes
-            </Link>
-          )}
+      {tipo === "empresa" && (
+        <>
+          <Link to="/dashboard" className={linkClass}>
+            Dashboard
+          </Link>
+          <Link to="/aplicaciones-empresa" className={linkClass}>
+            Postulaciones
+          </Link>
+        </>
+      )}
 
-          {tipo === "aspirante" && (
-            <>
-              <Link to="/mi-perfil" className="text-gray-700 hover:text-blue-600 font-medium">
-                Mi Perfil
-              </Link>
-              <Link to="/mis-aplicaciones" className="text-gray-700 hover:text-blue-600 font-medium">
-                Mis Postulaciones
-              </Link>
-            </>
-          )}
+      {tipo === "validador" && (
+        <Link to="/validador" className={cx(linkClass, "text-accent-on-dark hover:text-accent-on-dark")}>
+          Panel de auditoría
+        </Link>
+      )}
 
-          {tipo === "empresa" && (
-            <>
-              <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 font-medium">
-                Dashboard
-              </Link>
-              <Link to="/aplicaciones-empresa" className="text-gray-700 hover:text-blue-600 font-medium">
-                Postulaciones
-              </Link>
-            </>
-          )}
+      {!isHome && tipo !== "validador" && (
+        <Link to="/planes" className={linkClass}>
+          Planes
+        </Link>
+      )}
 
-          {tipo === "validador" && (
-            <Link to="/validador" className="text-red-600 font-bold hover:text-red-800 transition">
-              Panel de Auditoría
-            </Link>
-          )}
+      <Link to="/politicas" className={linkClass}>
+        Privacidad
+      </Link>
+    </>
+  );
 
-          {!isHome && tipo !== "validador" && (
-            <Link to="/planes" className="text-gray-700 hover:text-blue-600 font-medium">
-              Planes
-            </Link>
-          )}
+  const sessionControls = !token ? (
+    <>
+      <Link to="/login" className={linkClass}>
+        Iniciar sesión
+      </Link>
+      <Link to="/register">
+        <Button variant="primary" tone="dark" size="sm">
+          Registrarse
+        </Button>
+      </Link>
+    </>
+  ) : (
+    <>
+      <Link
+        to="/mis-aplicaciones"
+        aria-label={unreadCount > 0 ? `Notificaciones: ${unreadCount} sin leer` : "Notificaciones"}
+        className="relative text-white/60 transition-colors duration-200 hover:text-white"
+      >
+        <Bell size={20} strokeWidth={1.6} />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-pill bg-accent px-1 text-[0.6875rem] font-mid text-white">
+            {unreadCount}
+          </span>
+        )}
+      </Link>
 
-          <Link to="/politicas" className="text-gray-700 hover:text-blue-600 font-medium">
-            Privacidad
+      <span className="text-[0.9375rem] text-white/70">
+        Hola, <span className="text-white">{username}</span>
+      </span>
+
+      <Button variant="ghost" tone="dark" size="sm" onClick={logout}>
+        <LogOut size={14} strokeWidth={1.8} />
+        Cerrar sesión
+      </Button>
+    </>
+  );
+
+  return (
+    <div className="pointer-events-none sticky top-0 z-50 px-4 pt-4 md:px-7 md:pt-5">
+      <nav
+        className={cx(
+          "pointer-events-auto mx-auto max-w-[940px]",
+          "rounded-nav border border-hairline-d bg-elevated/80 shadow-glass-edge-d",
+          "backdrop-blur-nav backdrop-saturate-150"
+        )}
+      >
+        <div className="flex items-center justify-between gap-6 py-2 pl-5 pr-2">
+          <Link to={rutaLogo} className="whitespace-nowrap text-[1rem] font-mid tracking-[-0.015em] text-white">
+            TalentHub
           </Link>
 
-          {/* CONTROLES DE SESIÓN Y NOTIFICACIONES */}
-          {!token ? (
-            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
-              <Link to="/login" className="text-gray-700 hover:text-blue-600 font-medium text-center md:text-left">
-                Iniciar Sesión
-              </Link>
-              <Link to="/register" className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition text-center">
-                Registrarse
-              </Link>
-            </div>
-          ) : (
-            <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
-              <Link to="/mis-aplicaciones" className="relative text-gray-500 hover:text-talenthub-blue transition">
-                <Bell size={24} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
-                    {unreadCount}
-                  </span>
-                )}
-              </Link>
+          <div className="hidden items-center gap-6 lg:flex">{navLinks}</div>
+          <div className="hidden items-center gap-5 lg:flex">{sessionControls}</div>
 
-              <span className="text-gray-700 font-semibold">
-                Hola, {username}
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation(); // Evita que el click interactúe con el contenedor padre antes del logout
-                  logout();
-                }}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition cursor-pointer w-full md:w-auto"
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            aria-expanded={isMobileMenuOpen}
+            aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+            className="text-white/80 transition-colors hover:text-white lg:hidden"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+          >
+            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
-      </div>
-    </nav>
+
+        <AnimatePresence initial={false}>
+          {isMobileMenuOpen && (
+            <motion.div
+              key="mobile"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: DUR.base, ease: EASE }}
+              className="overflow-hidden lg:hidden"
+            >
+              <div className="flex flex-col gap-5 border-t border-hairline-d px-5 py-5">
+                {navLinks}
+                <div className="flex flex-wrap items-center gap-4 border-t border-hairline-d pt-5">
+                  {sessionControls}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+    </div>
   );
 };
 
