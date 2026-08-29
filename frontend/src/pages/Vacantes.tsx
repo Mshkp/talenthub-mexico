@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { SlidersHorizontal, MapPin, ExternalLink, X, RotateCcw } from 'lucide-react';
 import api from '../services/api';
-import { showError } from '../utils/alerts'; // IMPORTACIÓN NUEVA
+import { Button, Card, EmptyState, Field, Input, Select, SkeletonList, Tag, TONO_MODALIDAD } from '../components/ui';
+import { rise, stagger } from '../lib/motion';
 
 interface Vacante {
   id: number;
@@ -15,56 +18,52 @@ interface Vacante {
   fecha_publicacion: string;
 }
 
+const MXN = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+
 const Vacantes: React.FC = () => {
   const [vacantes, setVacantes] = useState<Vacante[]>([]);
-  const [vacantesFiltradas, setVacantesFiltradas] = useState<Vacante[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Filtros
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [modalidadFiltro, setModalidadFiltro] = useState('');
   const [salarioMin, setSalarioMin] = useState('');
 
-  useEffect(() => {
-    const fetchVacantes = async () => {
-      try {
-        const response = await api.get('/vacantes/');
-        setVacantes(response.data);
-        setVacantesFiltradas(response.data);
-        setLoading(false);
-      } catch (error) {
-        showError('No se pudieron cargar las vacantes. Revisa tu conexión.'); // ALERTA NUEVA
-        setLoading(false);
-      }
-    };
-
-    fetchVacantes();
+  const fetchVacantes = useCallback(async () => {
+    setEstado('cargando');
+    try {
+      const response = await api.get('/vacantes/');
+      setVacantes(response.data);
+      setEstado('listo');
+    } catch (error) {
+      // El error se cuenta en la propia página, no en un toast que desaparece:
+      // aquí el usuario necesita una salida (reintentar), no solo un aviso.
+      setEstado('error');
+    }
   }, []);
 
-  // Aplicar filtros
   useEffect(() => {
-    let resultado = [...vacantes];
+    fetchVacantes();
+  }, [fetchVacantes]);
 
-    // Filtro por texto
+  const vacantesFiltradas = useMemo(() => {
+    let resultado = vacantes;
+
     if (searchTerm) {
-      resultado = resultado.filter(v => 
-        v.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.empresa_nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      const q = searchTerm.toLowerCase();
+      resultado = resultado.filter(
+        (v) => v.titulo.toLowerCase().includes(q) || v.empresa_nombre.toLowerCase().includes(q)
       );
     }
-
-    // Filtro por modalidad
     if (modalidadFiltro) {
-      resultado = resultado.filter(v => v.modalidad === modalidadFiltro);
+      resultado = resultado.filter((v) => v.modalidad === modalidadFiltro);
     }
-
-    // Filtro por salario mínimo
     if (salarioMin) {
-      resultado = resultado.filter(v => parseFloat(v.salario_max) >= parseFloat(salarioMin));
+      resultado = resultado.filter((v) => parseFloat(v.salario_max) >= parseFloat(salarioMin));
     }
+    return resultado;
+  }, [vacantes, searchTerm, modalidadFiltro, salarioMin]);
 
-    setVacantesFiltradas(resultado);
-  }, [searchTerm, modalidadFiltro, salarioMin, vacantes]);
+  const hayFiltros = Boolean(searchTerm || modalidadFiltro || salarioMin);
 
   const limpiarFiltros = () => {
     setSearchTerm('');
@@ -72,149 +71,165 @@ const Vacantes: React.FC = () => {
     setSalarioMin('');
   };
 
-  const getModalidadColor = (modalidad: string) => {
-    switch (modalidad) {
-      case 'remoto': return 'bg-green-100 text-green-800';
-      case 'presencial': return 'bg-blue-100 text-blue-800';
-      case 'hibrido': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-talenthub-gray">Cargando vacantes...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Content */}
-      <div className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
-            Vacantes Disponibles
+    <div className="min-h-screen mesh-page">
+      {/* ── Banda oscura: el ancla que le faltaba a la página, y el sustrato del glass ── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[140px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-52 left-1/2 -z-10 h-[560px] w-[1000px] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.15),transparent_74%)] blur-[6px]"
+        />
+        <div className="relative mx-auto max-w-page px-6 md:px-7">
+          <h1 className="font-heading text-[clamp(2rem,4.4vw,3rem)] font-mid leading-none tracking-[-0.035em]">
+            Vacantes
           </h1>
-          <p className="text-gray-600">
-            {vacantesFiltradas.length} de {vacantes.length} oportunidades
+          <p className="tabular mt-3 text-sub text-ink-2d">
+            {estado === 'listo'
+              ? hayFiltros
+                ? `${vacantesFiltradas.length} de ${vacantes.length} oportunidades`
+                : `${vacantes.length} oportunidades abiertas`
+              : 'Buscando oportunidades…'}
           </p>
         </div>
+      </header>
 
-        {/* Filtros */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-lg font-bold text-talenthub-gray mb-4">🔍 Filtros de Búsqueda</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Búsqueda por texto */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Buscar
-              </label>
-              <input
+      <div className="mx-auto max-w-page px-6 pb-20 md:px-7">
+        {/* ── Filtros en glass, a caballo entre la banda oscura y el cuerpo claro.
+             El fondo cambia a través del panel: ahí es donde el glass se ve. ── */}
+        <div className="glass-panel glass-panel-overlap edge-l mb-8 p-7">
+          <div className="mb-5 flex items-center gap-2.5">
+            <SlidersHorizontal size={16} strokeWidth={1.7} className="text-muted" />
+            <h2 className="text-[0.9375rem] font-mid text-ink">Filtrar resultados</h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <Field label="Buscar" htmlFor="f-buscar">
+              <Input
+                id="f-buscar"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Título o empresa..."
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
+                placeholder="Título o empresa…"
               />
-            </div>
+            </Field>
 
-            {/* Filtro modalidad */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Modalidad
-              </label>
-              <select
+            <Field label="Modalidad" htmlFor="f-modalidad">
+              <Select
+                id="f-modalidad"
                 value={modalidadFiltro}
                 onChange={(e) => setModalidadFiltro(e.target.value)}
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
               >
                 <option value="">Todas</option>
                 <option value="remoto">Remoto</option>
                 <option value="presencial">Presencial</option>
                 <option value="hibrido">Híbrido</option>
-              </select>
-            </div>
+              </Select>
+            </Field>
 
-            {/* Filtro salario */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Salario mínimo
-              </label>
-              <input
+            <Field label="Salario mínimo" htmlFor="f-salario" hint="En pesos mexicanos">
+              <Input
+                id="f-salario"
                 type="number"
                 value={salarioMin}
                 onChange={(e) => setSalarioMin(e.target.value)}
                 placeholder="30000"
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none"
               />
-            </div>
+            </Field>
 
-            {/* Botón limpiar */}
-            <div className="flex items-end">
-              <button
-                onClick={limpiarFiltros}
-                className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"
-              >
+            <div className="flex items-start md:pt-[26px]">
+              <Button variant="ghost" className="w-full" onClick={limpiarFiltros} disabled={!hayFiltros}>
+                <X size={14} strokeWidth={1.8} />
                 Limpiar filtros
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Vacantes List */}
-        <div className="space-y-4">
-          {vacantesFiltradas.map((vacante) => (
-            <div
-              key={vacante.id}
-              className="bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-talenthub-blue hover:shadow-lg transition cursor-pointer"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h2 className="text-2xl font-bold text-talenthub-gray mb-1">
-                    {vacante.titulo}
-                  </h2>
-                  <p className="text-gray-600">{vacante.empresa_nombre}</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getModalidadColor(vacante.modalidad)}`}>
-                  {vacante.modalidad.charAt(0).toUpperCase() + vacante.modalidad.slice(1)}
-                </span>
-              </div>
+        {/* ── Resultados ── */}
+        {estado === 'cargando' && <SkeletonList count={4} />}
 
-              <p className="text-gray-700 mb-4">
-                {vacante.descripcion.substring(0, 150)}...
-              </p>
+        {estado === 'error' && (
+          <EmptyState
+            title="No pudimos cargar las vacantes"
+            description="El servidor no respondió. Puede ser una caída momentánea o tu conexión."
+            action={
+              <Button variant="ghost" onClick={fetchVacantes}>
+                <RotateCcw size={14} strokeWidth={1.8} />
+                Reintentar
+              </Button>
+            }
+          />
+        )}
 
-              <div className="flex justify-between items-center">
-                <div>
-                  <span className="text-talenthub-blue font-bold text-lg">
-                    ${parseFloat(vacante.salario_min).toLocaleString()} - ${parseFloat(vacante.salario_max).toLocaleString()} MXN
-                  </span>
-                  <p className="text-sm text-gray-500">{vacante.ubicacion}</p>
-                </div>
-                <Link 
-                  to={`/vacantes/${vacante.id}`}
-                  className="bg-talenthub-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-                >
-                  Ver detalles
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
+        {estado === 'listo' && vacantesFiltradas.length === 0 && (
+          <EmptyState
+            title={hayFiltros ? 'Ninguna vacante coincide' : 'Todavía no hay vacantes publicadas'}
+            description={
+              hayFiltros
+                ? 'Prueba con otros términos o amplía el rango salarial.'
+                : 'En cuanto las empresas publiquen, aparecerán aquí.'
+            }
+            action={
+              hayFiltros ? (
+                <Button variant="ghost" onClick={limpiarFiltros}>
+                  <X size={14} strokeWidth={1.8} />
+                  Limpiar filtros
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
 
-        {vacantesFiltradas.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <p className="text-xl text-gray-600">No se encontraron vacantes con esos filtros</p>
-            <button 
-              onClick={limpiarFiltros}
-              className="mt-4 text-talenthub-blue font-semibold hover:underline"
-            >
-              Limpiar filtros
-            </button>
-          </div>
+        {estado === 'listo' && vacantesFiltradas.length > 0 && (
+          <motion.ul
+            variants={stagger(0.06)}
+            initial="hidden"
+            animate="show"
+            className="flex list-none flex-col gap-3.5 p-0"
+          >
+            {vacantesFiltradas.map((vacante) => (
+              <motion.li key={vacante.id} variants={rise}>
+                <Card as="article" glass interactive>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="text-[1.3125rem] font-demi tracking-[-0.012em] text-ink">
+                        {vacante.titulo}
+                      </h3>
+                      <p className="mt-1 text-[0.875rem] text-muted">{vacante.empresa_nombre}</p>
+                    </div>
+                    <Tag tono={TONO_MODALIDAD[vacante.modalidad] ?? 'neutro'}>
+                      {vacante.modalidad.charAt(0).toUpperCase() + vacante.modalidad.slice(1)}
+                    </Tag>
+                  </div>
+
+                  <p className="mb-[18px] mt-3.5 max-w-[66ch] text-[0.90625rem] leading-relaxed text-ink-2">
+                    {vacante.descripcion.length > 180
+                      ? `${vacante.descripcion.slice(0, 180).trimEnd()}…`
+                      : vacante.descripcion}
+                  </p>
+
+                  <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                      <p className="tabular text-[1.03125rem] text-ink">
+                        ${MXN.format(parseFloat(vacante.salario_min))} – $
+                        {MXN.format(parseFloat(vacante.salario_max))} MXN
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted">
+                        <MapPin size={13} strokeWidth={1.7} />
+                        {vacante.ubicacion}
+                      </p>
+                    </div>
+                    <Link to={`/vacantes/${vacante.id}`}>
+                      <Button variant="ghost" size="sm">
+                        <ExternalLink size={14} strokeWidth={1.8} />
+                        Ver detalles
+                      </Button>
+                    </Link>
+                  </div>
+                </Card>
+              </motion.li>
+            ))}
+          </motion.ul>
         )}
       </div>
     </div>

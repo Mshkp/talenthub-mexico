@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api'; 
-import { showSuccess, showError, showConfirm } from '../utils/alerts';
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Check, ArrowRight, RotateCcw, X } from "lucide-react";
+import api from "../services/api";
+import { showSuccess, showError, showConfirm } from "../utils/alerts";
+import { Button, Card, EmptyState, SkeletonList } from "../components/ui";
+import { cx } from "../lib/cx";
+import { rise, stagger, revealViewport } from "../lib/motion";
 
 interface Plan {
   id: number;
@@ -17,42 +22,63 @@ interface MiSuscripcion {
   fecha_fin: string | null;
 }
 
-const Planes = () => {
+/** Los planes destacados invierten a superficie oscura sobre la banda clara. */
+const DESTACADOS = ["PREMIUM", "PRO"];
+
+const DESCRIPCIONES: Record<string, string> = {
+  GRATIS: "Empieza a explorar oportunidades tecnológicas",
+  PREMIUM: "Maximiza tus oportunidades laborales",
+  PRO: "Encuentra talento más rápido",
+  ENTERPRISE: "La solución completa para reclutamiento",
+};
+
+/** Lo que ya promete la página, dicho donde se toma la decisión. */
+const GARANTIAS = [
+  { titulo: "Sin permanencia", detalle: "Cancelas cuando quieras, desde tu propio panel." },
+  { titulo: "El cambio aplica al momento", detalle: "Subes o bajas de plan y toma efecto de inmediato." },
+  { titulo: "Cobro por PayPal", detalle: "TalentHub nunca ve los datos de tu tarjeta." },
+];
+
+const Planes: React.FC = () => {
   const navigate = useNavigate();
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [miSuscripcion, setMiSuscripcion] = useState<MiSuscripcion | null>(null);
+  const [estado, setEstado] = useState<"cargando" | "listo" | "error">("cargando");
 
   const userType = localStorage.getItem("user_tipo");
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    cargarPlanes();
-    if (token) {
-      cargarMiSuscripcion();
-    }
-  }, [token]);
-
-  const cargarPlanes = async () => {
+  const cargarMiSuscripcion = useCallback(async () => {
     try {
-      const res = await api.get('/planes/');
-      setPlanes(res.data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const cargarMiSuscripcion = async () => {
-    try {
-      const res = await api.get('/suscripcion/actual/');
+      const res = await api.get("/suscripcion/actual/");
       setMiSuscripcion(res.data);
     } catch (error) {
       console.error("Error al cargar la suscripción", error);
     }
-  };
+  }, []);
+
+  const cargarPlanes = useCallback(async () => {
+    setEstado("cargando");
+    try {
+      const res = await api.get("/planes/");
+      setPlanes(res.data);
+      setEstado("listo");
+    } catch (error) {
+      // Antes esto solo hacía console.error y la página quedaba en blanco
+      // sin explicar nada. Ahora el estado llega a la interfaz.
+      console.error(error);
+      setEstado("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarPlanes();
+    if (token) cargarMiSuscripcion();
+  }, [token, cargarPlanes, cargarMiSuscripcion]);
 
   const comprarPlan = (planId: number) => {
     if (!token) {
-      showError("Para comprar un plan, primero debes iniciar sesión o registrarte", "¡Alto ahí!");
+      showError("Para comprar un plan, primero inicia sesión o regístrate", "Falta un paso");
       return;
     }
     navigate(`/checkout/${planId}`);
@@ -60,209 +86,264 @@ const Planes = () => {
 
   const handleCancelarSuscripcion = async () => {
     const confirmado = await showConfirm(
-      "¿Estás seguro de que deseas cancelar tu plan? Perderás tus beneficios Premium y regresarás al plan Gratuito de inmediato.", 
-      "Cancelar Suscripción"
+      "Perderás los beneficios Premium y volverás al plan gratuito de inmediato.",
+      "¿Cancelar tu suscripción?",
+      { confirmLabel: "Sí, cancelar", cancelLabel: "Conservar plan", destructive: true }
     );
-
     if (!confirmado) return;
 
     try {
-      await api.post('/suscripcion/cancelar/');
-      showSuccess("Tu suscripción ha sido cancelada.", "Plan Gratuito Activado");
-      cargarMiSuscripcion(); // Recargamos para actualizar el banner
+      await api.post("/suscripcion/cancelar/");
+      showSuccess("Volviste al plan gratuito.", "Suscripción cancelada");
+      cargarMiSuscripcion();
     } catch (error) {
-      showError("No se pudo cancelar la suscripción", "Error");
+      showError("No se pudo cancelar la suscripción. Inténtalo de nuevo.");
     }
   };
 
-  const planesEmpresa = planes.filter(p => p.tipo_usuario === 'empresa');
-  const planesAspirante = planes.filter(p => p.tipo_usuario === 'aspirante');
+  const planesEmpresa = planes.filter((p) => p.tipo_usuario === "empresa");
+  const planesAspirante = planes.filter((p) => p.tipo_usuario === "aspirante");
 
-  const renderTarjetas = (listaPlanes: Plan[]) => {
-    return listaPlanes.map(plan => {
-      let emoji = "💼";
-      let descripcion = "Plan ideal para comenzar";
-
-      if (plan.nombre === "GRATIS" || plan.nombre === "Gratis") {
-        emoji = "🚀";
-        descripcion = "Empieza a explorar oportunidades tecnológicas";
-      }
-      if (plan.nombre === "PREMIUM" || plan.nombre === "Premium") {
-        emoji = "⭐";
-        descripcion = "Maximiza tus oportunidades laborales";
-      }
-      if (plan.nombre === "PRO" || plan.nombre === "Pro") {
-        emoji = "⚡";
-        descripcion = "Encuentra talento más rápido";
-      }
-      if (plan.nombre === "ENTERPRISE" || plan.nombre === "Enterprise") {
-        emoji = "👑";
-        descripcion = "La solución completa para reclutamiento";
-      }
-
-      const esPlanActual = miSuscripcion?.plan.toLowerCase() === plan.nombre.toLowerCase() && token && userType === plan.tipo_usuario;
-
-      return (
-        <div
-          key={plan.id}
-          className="w-full max-w-sm mx-auto" 
-          style={{
-            background: "white",
-            borderRadius: "20px",
-            padding: "40px 30px",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            transition: "all .3s ease",
-            border: plan.nombre.toUpperCase() === "PREMIUM" || plan.nombre.toUpperCase() === "PRO" ? "2px solid #2563eb" : "2px solid transparent",
-            position: "relative"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-8px)";
-            e.currentTarget.style.boxShadow = "0 20px 40px rgba(0,0,0,0.12)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 10px 25px rgba(0,0,0,0.05)";
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: "24px", fontWeight: "700", color: "#1f2937", marginBottom: "8px" }}>
-              {emoji} {plan.nombre}
-            </h2>
-            <p style={{ color: "#6b7280", marginBottom: "20px", lineHeight: "1.5" }}>
-              {descripcion}
-            </p>
-            <p style={{ fontSize: "36px", fontWeight: "800", color: "#2563eb", marginBottom: "30px" }}>
-              ${plan.precio} <span style={{fontSize:"16px", color:"#6b7280", fontWeight:"500"}}>MXN/mes</span>
-            </p>
-
-            <div style={{ marginBottom: "30px", color: "#4b5563", fontWeight: "500", lineHeight: "2" }}>
-              {plan.nombre.toUpperCase() === "PREMIUM" && plan.tipo_usuario === "aspirante" && (
-                <p>✨ Todo ilimitado</p>
-              )}
-              {plan.max_postulaciones_dia && (
-                <p>📄 {plan.max_postulaciones_dia} postulaciones por día</p>
-              )}
-              {plan.max_candidatos && (
-                <p>👥 Hasta {plan.max_candidatos} candidatos</p>
-              )}
-              <p>⚡ Plataforma rápida y segura</p>
-              <p>🔍 Acceso a oportunidades de TI</p>
-            </div>
-          </div>
-
-          {esPlanActual ? (
-            <button
-              style={{
-                width: "100%", padding: "14px", borderRadius: "12px", border: "none",
-                background: "#10b981", color: "white", fontWeight: "700", fontSize: "16px",
-                boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)"
-              }}
-            >
-              ✅ Tu plan actual
-            </button>
-          ) : parseFloat(plan.precio.toString()) === 0 ? (
-            <button
-              onClick={() => {
-                if(!token) showError("Regístrate para obtener este plan", "Casi listo");
-              }}
-              style={{
-                width: "100%", padding: "14px", borderRadius: "12px", border: "2px solid #e5e7eb",
-                background: "#f9fafb", color: "#4b5563", fontWeight: "700", fontSize: "16px",
-                cursor: token ? "default" : "pointer"
-              }}
-            >
-              Plan Gratuito
-            </button>
-          ) : (
-            <button
-              onClick={() => comprarPlan(plan.id)}
-              style={{
-                width: "100%", padding: "14px", borderRadius: "12px", border: "none",
-                background: "#2563eb", color: "white", fontWeight: "700", fontSize: "16px",
-                cursor: "pointer", boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)",
-                transition: "background .2s"
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#1d4ed8"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "#2563eb"}
-            >
-              💳 Comprar Plan
-            </button>
-          )}
-        </div>
-      );
-    });
+  /** Los beneficios salen de los datos del plan, no de una lista de emoji. */
+  const beneficios = (plan: Plan): string[] => {
+    const items: string[] = [];
+    if (plan.nombre.toUpperCase() === "PREMIUM" && plan.tipo_usuario === "aspirante") {
+      items.push("Postulaciones ilimitadas");
+    }
+    if (plan.max_postulaciones_dia) items.push(`${plan.max_postulaciones_dia} postulaciones por día`);
+    if (plan.max_candidatos) items.push(`Hasta ${plan.max_candidatos} candidatos por vacante`);
+    items.push("Acceso completo al catálogo de TI");
+    items.push("Soporte y plataforma verificada");
+    return items;
   };
 
-  return (
-    // CAMBIO AQUÍ: Usamos clases de Tailwind (px-4 py-12) en vez del padding fijo que rompía el móvil
-    <div className="px-4 py-12 md:py-16 md:px-20" style={{ minHeight: "calc(100vh - 80px)", backgroundColor: "#f9fafb" }}>
-      <h1 style={{ textAlign: "center", fontSize: "36px", fontWeight: "800", marginBottom: "10px", color: "#1f2937" }}>
-        💳 Planes de Suscripción
-      </h1>
-      <p style={{ textAlign: "center", color: "#4b5563", marginBottom: "40px", fontSize: "18px", fontWeight: "500" }}>
-        Elige el plan que mejor se adapte a tus necesidades y potencia tu experiencia en TalentHub 🚀
-      </p>
+  const renderTarjetas = (lista: Plan[]) => (
+    <motion.div
+      variants={stagger(0.09)}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.15 }}
+      className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3"
+    >
+      {lista.map((plan) => {
+        const nombre = plan.nombre.toUpperCase();
+        const destacado = DESTACADOS.includes(nombre);
+        const gratuito = parseFloat(plan.precio.toString()) === 0;
+        const esPlanActual =
+          miSuscripcion?.plan.toLowerCase() === plan.nombre.toLowerCase() &&
+          Boolean(token) &&
+          userType === plan.tipo_usuario;
+        const tone = destacado ? "dark" : "light";
 
-      {token && miSuscripcion && (
-        <div className="w-full mx-auto" style={{
-          maxWidth: "800px", marginBottom: "40px", padding: "20px", 
-          backgroundColor: miSuscripcion.plan.toUpperCase() === 'GRATIS' ? "#f3f4f6" : "#eff6ff",
-          border: miSuscripcion.plan.toUpperCase() === 'GRATIS' ? "1px solid #d1d5db" : "2px solid #3b82f6",
-          borderRadius: "12px", display: "flex", justifyContent: "space-between", alignItems: "center",
-          flexWrap: "wrap", gap: "10px"
-        }}>
-          <div>
-            <h3 style={{fontSize: "20px", fontWeight: "bold", color: "#1f2937", margin: 0}}>
-              Tu plan actual es: <span style={{color: "#2563eb"}}>{miSuscripcion.plan}</span>
-            </h3>
-            {miSuscripcion.fecha_fin && (
-              <p style={{color: "#4b5563", marginTop: "4px", fontSize: "14px"}}>
-                Válido hasta: {new Date(miSuscripcion.fecha_fin).toLocaleDateString('es-MX')}
-              </p>
-            )}
-          </div>
-          
-          {miSuscripcion.plan.toUpperCase() !== 'GRATIS' && (
-            <button 
-              onClick={handleCancelarSuscripcion}
-              style={{
-                backgroundColor: "#ef4444", color: "white", border: "none", 
-                padding: "10px 20px", borderRadius: "8px", fontWeight: "bold", 
-                cursor: "pointer", transition: "0.2s"
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#dc2626"}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#ef4444"}
-            >
-              Cancelar Suscripción
-            </button>
+        return (
+          <motion.div key={plan.id} variants={rise} className="h-full">
+            <Card tone={tone} interactive className="flex h-full flex-col">
+              <div className="flex-1">
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <h3 className={cx("text-h3 font-demi", destacado ? "text-ink-d" : "text-ink")}>
+                    {plan.nombre}
+                  </h3>
+                  {esPlanActual && (
+                    <span
+                      className={cx(
+                        "whitespace-nowrap rounded-pill border px-2.5 py-1 text-[0.6875rem] uppercase tracking-[0.06em]",
+                        destacado ? "border-hairline-d text-accent-on-dark" : "border-hairline text-accent"
+                      )}
+                    >
+                      Tu plan
+                    </span>
+                  )}
+                </div>
+
+                <p className={cx("text-[0.90625rem]", destacado ? "text-ink-2d" : "text-ink-2")}>
+                  {DESCRIPCIONES[nombre] ?? "Plan ideal para comenzar"}
+                </p>
+
+                <p className="mt-6 flex items-baseline gap-2">
+                  <span
+                    className={cx(
+                      "tabular text-[2.25rem] font-mid leading-none tracking-[-0.03em]",
+                      destacado ? "text-ink-d" : "text-ink"
+                    )}
+                  >
+                    ${plan.precio}
+                  </span>
+                  <span className={cx("text-[0.875rem]", destacado ? "text-muted-d" : "text-muted")}>
+                    MXN / mes
+                  </span>
+                </p>
+
+                <ul
+                  className={cx(
+                    "mt-7 flex flex-col gap-3 border-t pt-6",
+                    destacado ? "border-hairline-d" : "border-hairline"
+                  )}
+                >
+                  {beneficios(plan).map((item) => (
+                    <li key={item} className="flex items-start gap-2.5">
+                      <Check
+                        size={15}
+                        strokeWidth={2}
+                        className={cx("mt-[3px] flex-none", destacado ? "text-accent-on-dark" : "text-accent")}
+                      />
+                      <span className={cx("text-[0.875rem]", destacado ? "text-ink-2d" : "text-ink-2")}>
+                        {item}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mt-8">
+                {esPlanActual ? (
+                  <Button variant="ghost" tone={tone} className="w-full" disabled>
+                    <Check size={15} strokeWidth={2} />
+                    Plan activo
+                  </Button>
+                ) : gratuito ? (
+                  <Button
+                    variant="ghost"
+                    tone={tone}
+                    className="w-full"
+                    onClick={() => {
+                      if (!token) showError("Regístrate para activar el plan gratuito.", "Casi listo");
+                    }}
+                  >
+                    Plan gratuito
+                  </Button>
+                ) : (
+                  <Button
+                    variant={destacado ? "primary" : "accent"}
+                    tone={tone}
+                    className="w-full"
+                    onClick={() => comprarPlan(plan.id)}
+                  >
+                    <ArrowRight size={15} strokeWidth={1.8} />
+                    Contratar {plan.nombre}
+                  </Button>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+        );
+      })}
+    </motion.div>
+  );
+
+  const seccion = (titulo: string, lista: Plan[]) =>
+    lista.length > 0 ? (
+      <div className="mt-16 first:mt-0">
+        <motion.h2 {...revealViewport} className="mb-8 font-heading text-h2 font-demi tracking-[-0.015em] text-ink">
+          {titulo}
+        </motion.h2>
+        {renderTarjetas(lista)}
+      </div>
+    ) : null;
+
+  return (
+    <div className="bg-canvas">
+      {/* ── Hero oscuro ── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[150px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[620px] w-[980px] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(255,255,255,0.14),transparent_74%)] blur-[6px]"
+        />
+        <motion.div
+          variants={stagger(0.1, 0.05)}
+          initial="hidden"
+          animate="show"
+          className="relative mx-auto max-w-page px-6 md:px-7"
+        >
+          <motion.p variants={rise} className="mb-4 text-caption uppercase tracking-[0.06em] text-muted-d">
+            Planes
+          </motion.p>
+          <motion.h1
+            variants={rise}
+            className="mb-5 max-w-[16ch] font-heading text-[clamp(2rem,5vw,3.5rem)] font-mid leading-none tracking-[-0.035em]"
+          >
+            Elige cómo quieres crecer
+          </motion.h1>
+          <motion.p variants={rise} className="max-w-[46ch] text-sub text-ink-2d">
+            Sin permanencia y sin cargos ocultos. Cambias o cancelas cuando quieras.
+          </motion.p>
+        </motion.div>
+      </header>
+
+      {/* ── Banda clara con los planes ── */}
+      <section className="mesh-light flow-root bg-surface pb-20 md:pb-[88px]">
+        <div className="relative mx-auto max-w-page px-6 md:px-7">
+          {/* Panel a caballo del filo: refracta la banda oscura arriba y la
+              página clara abajo. Ese degradado no está pintado. */}
+          <dl className="glass-panel glass-panel-overlap-sm edge-l mb-14 grid grid-cols-1 gap-7 p-7 sm:grid-cols-3">
+            {GARANTIAS.map(({ titulo, detalle }) => (
+              <div key={titulo}>
+                <dt className="font-mid text-[0.9375rem] text-ink">{titulo}</dt>
+                <dd className="mt-1.5 text-[0.875rem] leading-relaxed text-muted">{detalle}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {token && miSuscripcion && (
+            <Card className="mb-14 flex flex-wrap items-center justify-between gap-5">
+              <div>
+                <p className="text-[0.8125rem] uppercase tracking-[0.06em] text-muted">Tu plan actual</p>
+                <p className="mt-1.5 text-h3 font-demi text-ink">{miSuscripcion.plan}</p>
+                {miSuscripcion.fecha_fin && (
+                  <p className="tabular mt-1 text-[0.875rem] text-muted">
+                    Válido hasta el{" "}
+                    {new Date(miSuscripcion.fecha_fin).toLocaleDateString("es-MX", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
+              {miSuscripcion.plan.toUpperCase() !== "GRATIS" && (
+                <Button variant="ghost" onClick={handleCancelarSuscripcion}>
+                  <X size={14} strokeWidth={1.8} />
+                  Cancelar suscripción
+                </Button>
+              )}
+            </Card>
+          )}
+
+          {estado === "cargando" && <SkeletonList count={3} />}
+
+          {estado === "error" && (
+            <EmptyState
+              title="No pudimos cargar los planes"
+              description="El servidor no respondió. Puede ser una caída momentánea o tu conexión."
+              action={
+                <Button variant="ghost" onClick={cargarPlanes}>
+                  <RotateCcw size={14} strokeWidth={1.8} />
+                  Reintentar
+                </Button>
+              }
+            />
+          )}
+
+          {estado === "listo" && planes.length === 0 && (
+            <EmptyState
+              title="Todavía no hay planes publicados"
+              description="En cuanto haya planes disponibles aparecerán aquí."
+            />
+          )}
+
+          {estado === "listo" && planes.length > 0 && (
+            <>
+              {!userType ? (
+                <>
+                  {seccion("Para empresas", planesEmpresa)}
+                  {seccion("Para aspirantes", planesAspirante)}
+                </>
+              ) : (
+                renderTarjetas(userType === "empresa" ? planesEmpresa : planesAspirante)
+              )}
+            </>
           )}
         </div>
-      )}
-
-      {!userType ? (
-        <>
-          <h2 style={{textAlign: "center", fontSize: "28px", fontWeight: "700", color: "#374151", marginBottom: "30px", marginTop: "20px"}}>
-            🏢 Para Empresas
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
-            {renderTarjetas(planesEmpresa)}
-          </div>
-
-          <h2 style={{textAlign: "center", fontSize: "28px", fontWeight: "700", color: "#374151", marginBottom: "30px", marginTop: "80px"}}>
-            👨‍💻 Para Aspirantes
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
-            {renderTarjetas(planesAspirante)}
-          </div>
-        </>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1200px", margin: "0 auto" }}>
-          {renderTarjetas(userType === "empresa" ? planesEmpresa : planesAspirante)}
-        </div>
-      )}
+      </section>
     </div>
   );
 };
