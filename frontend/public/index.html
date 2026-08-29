@@ -4,18 +4,27 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2563EB" /> <meta
+    <!-- El tope de la página es el hero oscuro; el chrome del navegador acompaña -->
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta
       name="description"
       content="TalentHub México - La plataforma líder para conectar al mejor talento con las mejores empresas del país."
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    
+
+    <!-- Fuentes del sistema de diseño. Dos <link> separados a propósito:
+         si una familia falla, la otra sigue cargando.
+         Se piden como variables (rangos de eje) para alcanzar los pesos 460 y 540. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&display=swap" rel="stylesheet" />
+
     <title>TalentHub México</title>
   </head>
   <body>
     <noscript>Necesitas habilitar JavaScript para usar TalentHub México.</noscript>
     <div id="root"></div>
-    </body>
+  </body>
 </html>
-

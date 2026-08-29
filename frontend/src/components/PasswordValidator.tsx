@@ -1,111 +1,112 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import React, { useEffect, useMemo } from 'react';
+import { Check } from 'lucide-react';
+import { cx } from '../lib/cx';
 
-// Si usas .jsx, puedes quitar la interfaz de TypeScript
 interface PasswordValidatorProps {
   password: string;
   onValidationChange: (isValid: boolean) => void;
+  /** Registro de la superficie que lo contiene. Auth vive en oscuro. */
+  tone?: 'light' | 'dark';
 }
 
-export default function PasswordValidator({ password, onValidationChange }: PasswordValidatorProps) {
-  const [requirements, setRequirements] = useState({
-    length: false,
-    uppercase: false,
-    number: false,
-    special: false,
-  });
+const REGLAS: Array<{ label: string; test: (p: string) => boolean }> = [
+  { label: 'Mínimo 8 caracteres', test: (p) => p.length >= 8 },
+  { label: 'Una mayúscula', test: (p) => /[A-Z]/.test(p) },
+  { label: 'Un número', test: (p) => /[0-9]/.test(p) },
+  { label: 'Un carácter especial', test: (p) => /[^A-Za-z0-9]/.test(p) },
+];
 
-  // Efecto que evalúa la contraseña cada vez que cambia
+const NIVELES = ['Muy débil', 'Débil', 'Regular', 'Buena', 'Segura'];
+
+/**
+ * Medidor de seguridad de contraseña.
+ *
+ * Los cuatro requisitos son una lista de verificación, no una secuencia, así que
+ * aquí sí corresponde una marca por ítem — a diferencia del estado de una
+ * postulación, que es un proceso. La barra usa segmentos y no un degradado
+ * continuo: son cuatro condiciones discretas y se leen como tales.
+ */
+export default function PasswordValidator({
+  password,
+  onValidationChange,
+  tone = 'light',
+}: PasswordValidatorProps) {
+  const cumplidas = useMemo(() => REGLAS.map((r) => r.test(password)), [password]);
+  const score = cumplidas.filter(Boolean).length;
+  const oscuro = tone === 'dark';
+
   useEffect(() => {
-    const length = password.length >= 8;
-    const uppercase = /[A-Z]/.test(password);
-    const number = /[0-9]/.test(password);
-    const special = /[^A-Za-z0-9]/.test(password);
+    onValidationChange(score === REGLAS.length);
+  }, [score, onValidationChange]);
 
-    setRequirements({ length, uppercase, number, special });
-
-    // Informar al componente padre si la contraseña ya es 100% segura
-    onValidationChange(length && uppercase && number && special);
-  }, [password, onValidationChange]);
-
-  // Calcular porcentaje para la barra visual (cada requisito vale 25%)
-  const score = Object.values(requirements).filter(Boolean).length;
-  const progressPercentage = score * 25;
-
-  // Determinar color de la barra según el nivel de seguridad
-  const getProgressBarColor = () => {
-    if (score <= 1) return '#ef4444'; // Rojo (Débil)
-    if (score === 2) return '#f59e0b'; // Naranja (Regular)
-    if (score === 3) return '#3b82f6'; // Azul (Buena)
-    return '#10b981'; // Verde (Segura)
-  };
-
-  const styles = {
-    container: {
-      marginTop: '10px',
-      marginBottom: '20px',
-      padding: '12px',
-      backgroundColor: '#F9FAFB',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '0.85rem',
-      color: '#4b5563'
-    },
-    progressBarBackground: {
-      height: '6px',
-      backgroundColor: '#e5e7eb',
-      borderRadius: '4px',
-      marginBottom: '10px',
-      overflow: 'hidden'
-    },
-    progressBarFill: {
-      height: '100%',
-      width: `${progressPercentage}%`,
-      backgroundColor: getProgressBarColor(),
-      transition: 'all 0.3s ease-in-out'
-    },
-    list: {
-      listStyle: 'none',
-      padding: 0,
-      margin: 0,
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '8px'
-    },
-    listItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px'
-    }
+  const colorSegmento = (i: number) => {
+    if (i >= score) return oscuro ? 'bg-white/[0.13]' : 'bg-black/[0.10]';
+    if (score === 4) return oscuro ? 'bg-ok-d' : 'bg-ok';
+    if (score === 3) return oscuro ? 'bg-accent-on-dark' : 'bg-accent';
+    return oscuro ? 'bg-danger-d' : 'bg-danger';
   };
 
   return (
-    <div style={styles.container}>
-      <div style={{ marginBottom: '8px', fontWeight: '600', color: '#111827' }}>
-        Nivel de seguridad: {score === 4 ? 'Óptima' : score >= 2 ? 'Media' : 'Débil'}
-      </div>
-      
-      <div style={styles.progressBarBackground}>
-        <div style={styles.progressBarFill}></div>
+    <div
+      className={cx(
+        'rounded-ui border p-4',
+        oscuro ? 'border-hairline-d bg-white/[0.035]' : 'border-hairline bg-surface'
+      )}
+    >
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <span
+          className={cx(
+            'text-[0.8125rem] uppercase tracking-[0.06em]',
+            oscuro ? 'text-muted-d' : 'text-muted'
+          )}
+        >
+          Seguridad
+        </span>
+        <span
+          className={cx(
+            'text-[0.875rem] font-mid',
+            score === 4
+              ? oscuro ? 'text-ok-d' : 'text-ok'
+              : score >= 2
+                ? oscuro ? 'text-ink-d' : 'text-ink'
+                : oscuro ? 'text-danger-d' : 'text-danger'
+          )}
+        >
+          {NIVELES[score]}
+        </span>
       </div>
 
-      <ul style={styles.list}>
-        <li style={styles.listItem}>
-          {requirements.length ? <CheckCircle2 size={16} color="#10b981" /> : <XCircle size={16} color="#9ca3af" />}
-          <span>Mínimo 8 caracteres</span>
-        </li>
-        <li style={styles.listItem}>
-          {requirements.uppercase ? <CheckCircle2 size={16} color="#10b981" /> : <XCircle size={16} color="#9ca3af" />}
-          <span>Una mayúscula</span>
-        </li>
-        <li style={styles.listItem}>
-          {requirements.number ? <CheckCircle2 size={16} color="#10b981" /> : <XCircle size={16} color="#9ca3af" />}
-          <span>Un número</span>
-        </li>
-        <li style={styles.listItem}>
-          {requirements.special ? <CheckCircle2 size={16} color="#10b981" /> : <XCircle size={16} color="#9ca3af" />}
-          <span>Un carácter especial</span>
-        </li>
+      <div className="mb-4 flex gap-1.5" aria-hidden="true">
+        {REGLAS.map((_, i) => (
+          <span key={i} className={cx('h-[3px] flex-1 rounded-sm transition-colors duration-300', colorSegmento(i))} />
+        ))}
+      </div>
+
+      <ul className="grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
+        {REGLAS.map((regla, i) => (
+          <li key={regla.label} className="flex items-center gap-2">
+            <Check
+              size={14}
+              strokeWidth={2.2}
+              className={cx(
+                'flex-none transition-colors',
+                cumplidas[i]
+                  ? oscuro ? 'text-ok-d' : 'text-ok'
+                  : oscuro ? 'text-white/25' : 'text-black/20'
+              )}
+            />
+            <span
+              className={cx(
+                'text-[0.8125rem]',
+                cumplidas[i]
+                  ? oscuro ? 'text-ink-2d' : 'text-ink-2'
+                  : oscuro ? 'text-muted-d' : 'text-muted'
+              )}
+            >
+              {regla.label}
+            </span>
+          </li>
+        ))}
       </ul>
     </div>
   );

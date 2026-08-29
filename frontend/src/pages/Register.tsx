@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { showSuccess } from '../utils/alerts';
-import PasswordValidator from '../components/PasswordValidator'; // Importación del componente de seguridad
+import PasswordValidator from '../components/PasswordValidator';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Building2, UserPlus, UserRound } from 'lucide-react';
+import { AuthShell, Button, ChoiceCards, Field, Input } from '../components/ui';
+import { DUR, EASE } from '../lib/motion';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -13,38 +17,35 @@ const Register: React.FC = () => {
     password2: '',
     tipo: 'aspirante',
     telefono: '',
-    nombre_empresa: ''
+    nombre_empresa: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // NUEVO ESTADO: Controla si la contraseña cumple con las políticas de seguridad
   const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (error) setError('');
   };
+
+  const noCoinciden =
+    formData.password2.length > 0 && formData.password !== formData.password2;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    // S-SDLC: Validación de políticas antes de procesar datos
+
+    // S-SDLC: la política de contraseña se valida antes de mandar nada.
     if (!isPasswordValid) {
-      setError('La contraseña no cumple con las políticas de seguridad mínimas.');
+      setError('La contraseña no cumple con los requisitos de seguridad.');
       return;
     }
-
     if (formData.password !== formData.password2) {
-      setError('Las contraseñas no coinciden');
+      setError('Las contraseñas no coinciden.');
       return;
     }
 
     setLoading(true);
-    
     try {
       await api.post('/register/', {
         username: formData.username,
@@ -52,92 +53,178 @@ const Register: React.FC = () => {
         password: formData.password,
         tipo: formData.tipo,
         telefono: formData.telefono,
-        nombre_empresa: formData.nombre_empresa
+        nombre_empresa: formData.nombre_empresa,
       });
-      
-      showSuccess('¡Registro exitoso!', 'Ahora puedes iniciar sesión');
+
+      showSuccess('Ya puedes iniciar sesión con tu cuenta.', 'Registro completo');
       navigate('/login');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al registrarse');
+      setError(err.response?.data?.message || 'No se pudo completar el registro.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-talenthub-blue mb-2">TalentHub México</h1>
-          <p className="text-gray-600">Crea tu cuenta</p>
+    <AuthShell
+      wide
+      title="Crea tu cuenta"
+      subtitle="Gratis, y puedes cambiar de plan cuando quieras"
+      footer={
+        <>
+          ¿Ya tienes cuenta?{' '}
+          <Link to="/login" className="text-accent-on-dark hover:underline">
+            Inicia sesión
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <ChoiceCards
+          tone="dark"
+          name="tipo"
+          label="Tipo de cuenta"
+          value={formData.tipo}
+          onChange={(tipo) => {
+            setFormData((prev) => ({ ...prev, tipo }));
+            if (error) setError('');
+          }}
+          options={[
+            {
+              value: 'aspirante',
+              label: 'Busco empleo',
+              description: 'Aplica a vacantes y guarda tu perfil.',
+              icon: UserRound,
+            },
+            {
+              value: 'empresa',
+              label: 'Publico vacantes',
+              description: 'Recibe postulaciones y gestiona tu equipo.',
+              icon: Building2,
+            },
+          ]}
+        />
+
+        {/* El campo aparece porque la elección de arriba lo trajo: animar la
+            altura hace visible esa causa. Si simplemente apareciera, el
+            formulario daría un brinco sin explicación. */}
+        <AnimatePresence initial={false}>
+          {formData.tipo === 'empresa' && (
+            <motion.div
+              key="empresa"
+              initial={{ opacity: 0, height: 0, marginTop: -20 }}
+              animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
+              exit={{ opacity: 0, height: 0, marginTop: -20 }}
+              transition={{ duration: DUR.base, ease: EASE }}
+              className="overflow-hidden"
+            >
+              <Field tone="dark" label="Nombre de la empresa" htmlFor="nombre_empresa">
+                <Input
+                  tone="dark"
+                  id="nombre_empresa"
+                  name="nombre_empresa"
+                  value={formData.nombre_empresa}
+                  onChange={handleChange}
+                  placeholder="Tech Corp México"
+                  required
+                />
+              </Field>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Field tone="dark" label="Nombre de usuario" htmlFor="username">
+            <Input
+              tone="dark"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              autoComplete="username"
+              required
+            />
+          </Field>
+
+          <Field tone="dark" label="Teléfono" htmlFor="telefono" hint="Opcional">
+            <Input
+              tone="dark"
+              id="telefono"
+              type="tel"
+              name="telefono"
+              value={formData.telefono}
+              onChange={handleChange}
+              placeholder="5512345678"
+            />
+          </Field>
         </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
+        <Field tone="dark" label="Correo electrónico" htmlFor="email">
+          <Input
+            tone="dark"
+            id="email"
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            autoComplete="email"
+            required
+          />
+        </Field>
+
+        <Field tone="dark" label="Contraseña" htmlFor="password">
+          <Input
+            tone="dark"
+            id="password"
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+
+        {formData.password.length > 0 && (
+          <PasswordValidator tone="dark" password={formData.password} onValidationChange={setIsPasswordValid} />
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Tipo de cuenta</label>
-            <select name="tipo" value={formData.tipo} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required>
-              <option value="aspirante">Aspirante (Busco empleo)</option>
-              <option value="empresa">Empresa (Publico vacantes)</option>
-            </select>
-          </div>
+        <Field
+          tone="dark"
+          label="Confirmar contraseña"
+          htmlFor="password2"
+          error={noCoinciden ? 'Las contraseñas no coinciden.' : error || undefined}
+        >
+          <Input
+            tone="dark"
+            id="password2"
+            type="password"
+            name="password2"
+            value={formData.password2}
+            onChange={handleChange}
+            autoComplete="new-password"
+            required
+          />
+        </Field>
 
-          {formData.tipo === 'empresa' && (
-            <div>
-              <label className="block text-sm font-semibold text-talenthub-gray mb-1">Nombre de la empresa *</label>
-              <input type="text" name="nombre_empresa" value={formData.nombre_empresa} onChange={handleChange} placeholder="Tech Corp México" className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required={formData.tipo === 'empresa'} />
-            </div>
-          )}
+        <Button
+          type="submit"
+          variant="accent"
+          className="mt-1 w-full"
+          disabled={loading || !isPasswordValid || noCoinciden}
+        >
+          <UserPlus size={15} strokeWidth={1.8} />
+          {loading ? 'Creando cuenta…' : 'Crear cuenta'}
+        </Button>
 
-          <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Nombre de usuario</label>
-            <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Email</label>
-            <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Teléfono</label>
-            <input type="tel" name="telefono" value={formData.telefono} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" placeholder="5512345678" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Contraseña</label>
-            <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
-          </div>
-
-          {/* INTEGRACIÓN DEL VALIDADOR DE CONTRASEÑA */}
-          {formData.password.length > 0 && (
-            <PasswordValidator 
-              password={formData.password} 
-              onValidationChange={setIsPasswordValid} 
-            />
-          )}
-
-          <div>
-            <label className="block text-sm font-semibold text-talenthub-gray mb-1">Confirmar contraseña</label>
-            <input type="password" name="password2" value={formData.password2} onChange={handleChange} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-talenthub-blue focus:outline-none transition" required />
-          </div>
-
-          {/* El botón se deshabilita si está cargando o la contraseña es inválida */}
-          <button type="submit" disabled={loading || !isPasswordValid} className="w-full bg-talenthub-blue text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400">
-            {loading ? 'Registrando...' : 'Crear cuenta'}
-          </button>
-        </form>
-
-        <p className="text-center text-gray-600 mt-6">
-          ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className="text-talenthub-blue font-semibold hover:underline">Inicia sesión</Link>
+        <p className="text-center text-[0.8125rem] leading-relaxed text-muted-d">
+          Al registrarte aceptas nuestro{' '}
+          <Link to="/politicas" className="text-accent-on-dark hover:underline">
+            aviso de privacidad
+          </Link>
+          .
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   );
 };
 

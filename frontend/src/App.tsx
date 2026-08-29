@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sileo';
 import Navbar from './components/navbar';
+import Footer from './components/footer';
+import { ConfirmHost } from './components/ui';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -21,7 +24,6 @@ import PoliticasPrivacidad from './pages/PoliticasPrivacidad';
 function App() {
   return (
     <Router>
-      {/* El Navbar inteligente siempre va aquí arriba */}
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -42,6 +44,19 @@ function App() {
         <Route path="/restablecer-password/:uid/:token" element={<RestablecerPassword />} />
         <Route path="/politicas" element={<PoliticasPrivacidad />} />
       </Routes>
+
+      <Footer />
+
+      {/*
+        Notificaciones. OJO con `theme`: sileo lo nombra por el color del TEXTO,
+        no de la superficie. "light" = texto claro = burbuja oscura, que es justo
+        lo que queremos — chrome oscuro flotando sobre contenido claro, igual que
+        el nav.
+      */}
+      <Toaster theme="light" position="bottom-center" options={{ roundness: 18 }} />
+
+      {/* Resuelve las promesas de showConfirm(); sileo no hace confirmaciones */}
+      <ConfirmHost />
     </Router>
   );
 }

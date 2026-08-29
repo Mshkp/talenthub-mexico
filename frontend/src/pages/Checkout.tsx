@@ -1,87 +1,107 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { showSuccess, showError } from '../utils/alerts';
+import { rise, riseGlass, stagger } from '../lib/motion';
 
 const Checkout: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // Configuración inicial con tu llave de Sandbox
   const initialOptions = {
-    clientId: "AekJ2ycu6mOuqPUg8IG97Z7KVb_tawnIH2V6gX6qzSPRh1ilpvFlgwFwVdrPzE_R3e6atC-jqbS49bvX",
-    currency: "MXN",
-    intent: "capture",
+    // TODO: mover a REACT_APP_PAYPAL_CLIENT_ID. Hoy es la llave de sandbox y
+    // no cobra dinero real, pero al pasar a producción la llave viva no puede
+    // quedar en el bundle: cualquiera la lee con ver-código-fuente.
+    clientId: 'AekJ2ycu6mOuqPUg8IG97Z7KVb_tawnIH2V6gX6qzSPRh1ilpvFlgwFwVdrPzE_R3e6atC-jqbS49bvX',
+    currency: 'MXN',
+    intent: 'capture',
   };
 
-  // 1. React le pide a Django que cree la orden
+  /** Django crea la orden y devuelve el id que PayPal generó. */
   const crearOrden = async () => {
     try {
-      // Llamamos a tu ruta que ya existe
       const response = await api.post('/pago/crear/', { plan_id: planId });
-      
-      // OJO AQUÍ: Django debe devolvernos el ID de la orden generada por PayPal
-      // Ej. { "id": "5O190127TN364715T" }
-      return response.data.id; 
+      return response.data.id;
     } catch (error) {
-      showError("No se pudo conectar con el servidor de pagos", "Error");
+      showError('No pudimos conectar con el servidor de pagos.');
       throw error;
     }
   };
 
-  // 2. React le avisa a Django que el pago en el Sandbox fue un éxito
+  /** PayPal ya cobró; le avisamos a Django para que active el plan. */
   const capturarOrden = async (data: any) => {
     setLoading(true);
     try {
-      // data.orderID es el recibo que nos da PayPal después de cobrar
-      await api.post('/pago/capturar/', {order_id: data.orderID, plan_id: planId});
+      await api.post('/pago/capturar/', { order_id: data.orderID, plan_id: planId });
 
-      
-      showSuccess("¡Tu pago ha sido procesado!", "Bienvenido a tu nuevo plan");
-      
-      // Lo mandamos de regreso a su panel
-      const userTipo = localStorage.getItem('user_tipo');
-      if (userTipo === 'empresa') {
-        navigate('/dashboard');
-      } else {
-        navigate('/vacantes');
-      }
+      showSuccess('Tu plan quedó activo.', 'Pago procesado');
+      navigate(localStorage.getItem('user_tipo') === 'empresa' ? '/dashboard' : '/vacantes');
     } catch (error) {
-      showError("Hubo un problema al validar tu pago", "Error en la captura");
+      showError('El cobro se hizo pero no pudimos validarlo. Escríbenos antes de reintentar.', 'Revisa tu pago');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center relative overflow-hidden">
-        
-        {/* Decoración superior */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-talenthub-blue"></div>
+    <div className="relative isolate mt-[calc(var(--nav-flow)*-1)] flex min-h-screen items-center justify-center overflow-hidden bg-night px-6 pb-24 pt-[168px] text-ink-d">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[760px] w-[1000px] -translate-x-1/2 -translate-y-[56%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.14),rgba(255,255,255,0.03)_52%,transparent_76%)] blur-[8px]"
+      />
 
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Completar Pago</h1>
-        <p className="text-gray-500 mb-8 font-medium">Estás a un paso de potenciar tu cuenta</p>
+      <motion.div variants={stagger(0.09)} initial="hidden" animate="show" className="w-full max-w-[440px]">
+        <motion.div variants={rise} className="mb-8 text-center">
+          <Link
+            to="/planes"
+            className="inline-flex items-center gap-2 text-[0.875rem] text-muted-d transition-colors hover:text-ink-d"
+          >
+            <ArrowLeft size={14} strokeWidth={1.8} />
+            Volver a planes
+          </Link>
+        </motion.div>
 
-        {/* Contenedor de los botones de PayPal */}
-        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-inner z-10 relative">
-          <PayPalScriptProvider options={initialOptions}>
-            <PayPalButtons 
-              createOrder={crearOrden} 
-              onApprove={capturarOrden}
-              style={{ layout: "vertical", shape: "rect", color: "blue" }}
-              onError={() => showError("El pago fue cancelado o hubo un error con PayPal")}
-            />
-          </PayPalScriptProvider>
-        </div>
+        <motion.div
+          variants={riseGlass}
+          className="edge-d rounded-card bg-white/[0.045] p-8 backdrop-blur-overlay backdrop-saturate-150 sm:p-9"
+        >
+          <h1 className="text-h3 font-demi text-ink-d">Completar pago</h1>
+          <p className="mt-1.5 text-[0.9375rem] text-muted-d">
+            El cobro lo procesa PayPal. TalentHub nunca ve los datos de tu tarjeta.
+          </p>
 
-        {loading && <p className="text-talenthub-blue font-bold mt-4 animate-pulse">Validando pago con el servidor...</p>}
+          {/* Los botones de PayPal viven en un iframe con fondo blanco que no
+              podemos tematizar. En vez de pelearnos con él, le damos una placa
+              clara propia: se lee como una superficie deliberada del sistema y
+              no como un parche pegado sobre la tarjeta oscura. */}
+          <div className="mt-7 rounded-ui bg-canvas p-4">
+            <PayPalScriptProvider options={initialOptions}>
+              <PayPalButtons
+                createOrder={crearOrden}
+                onApprove={capturarOrden}
+                // `pill` es la silueta del sistema; `rect` chocaba con todo lo demás.
+                style={{ layout: 'vertical', shape: 'pill', color: 'black' }}
+                onError={() => showError('PayPal canceló la operación o falló el cobro.')}
+              />
+            </PayPalScriptProvider>
+          </div>
 
-        <Link to="/planes" className="block mt-6 text-gray-500 hover:text-gray-700 font-semibold transition">
-          Cancelar y volver a planes
-        </Link>
-      </div>
+          {loading && (
+            <p role="status" className="mt-5 flex items-center justify-center gap-2.5 text-[0.875rem] text-ink-2d">
+              <Loader2 size={15} strokeWidth={1.8} className="animate-spin" />
+              Validando el pago con el servidor…
+            </p>
+          )}
+
+          <p className="mt-6 flex items-start gap-2.5 border-t border-hairline-d pt-5 text-[0.8125rem] leading-relaxed text-muted-d">
+            <ShieldCheck size={15} strokeWidth={1.7} className="mt-px flex-none" />
+            Estás en el entorno de pruebas de PayPal: no se cobra dinero real.
+          </p>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
