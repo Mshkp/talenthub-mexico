@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ExternalLink, ArrowRight, RotateCcw } from 'lucide-react';
 import api from '../services/api';
+import { showError } from '../utils/alerts';
+import { Button, Card, EmptyState, ProcessTrack, SkeletonList } from '../components/ui';
+import { rise, stagger } from '../lib/motion';
 
 interface Aplicacion {
   id: number;
@@ -10,122 +15,171 @@ interface Aplicacion {
   vacante: number;
 }
 
+/** El orden importa: es el avance real del proceso, no un alfabético. */
+const RESUMEN: Array<{ estado: string; label: string }> = [
+  { estado: 'pendiente', label: 'Enviadas' },
+  { estado: 'revisado', label: 'En revisión' },
+  { estado: 'aceptado', label: 'Aceptadas' },
+  { estado: 'rechazado', label: 'Rechazadas' },
+];
+
 const MisAplicaciones: React.FC = () => {
   const navigate = useNavigate();
   const [aplicaciones, setAplicaciones] = useState<Aplicacion[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
 
-  useEffect(() => {
-    // Usamos el nombre de token correcto
-    const token = localStorage.getItem('token');
-    const userTipo = localStorage.getItem('user_tipo');
-    
-    if (!token) {
-      alert('Debes iniciar sesión para ver tus postulaciones');
-      navigate('/login');
-      return;
-    }
-    
-    if (userTipo !== 'aspirante') {
-      alert('Solo los aspirantes pueden ver sus aplicaciones');
-      navigate('/dashboard');
-      return;
-    }
-    
-    fetchAplicaciones();
-  }, [navigate]);
-
-  const fetchAplicaciones = async () => {
+  const fetchAplicaciones = useCallback(async () => {
+    setEstado('cargando');
     try {
       const response = await api.get('/aplicaciones/');
       setAplicaciones(response.data);
-      setLoading(false);
+      setEstado('listo');
     } catch (error) {
       console.error('Error:', error);
-      setLoading(false);
+      setEstado('error');
     }
-  };
+  }, []);
 
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800';
-      case 'revisado': return 'bg-blue-100 text-blue-800';
-      case 'aceptado': return 'bg-green-100 text-green-800';
-      case 'rechazado': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userTipo = localStorage.getItem('user_tipo');
+
+    // Antes esto usaba alert() del navegador, que bloquea el hilo y se ve
+    // como un error del sistema. Ahora es una notificación del propio sitio.
+    if (!token) {
+      showError('Inicia sesión para ver tus postulaciones.', 'Falta un paso');
+      navigate('/login');
+      return;
     }
-  };
-
-  const getEstadoTexto = (estado: string) => {
-    switch (estado) {
-      case 'pendiente': return 'Pendiente';
-      case 'revisado': return 'En Revisión';
-      case 'aceptado': return 'Aceptado';
-      case 'rechazado': return 'Rechazado';
-      default: return estado;
+    if (userTipo !== 'aspirante') {
+      showError('Esta sección es solo para aspirantes.', 'Sin acceso');
+      navigate('/dashboard');
+      return;
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl text-talenthub-gray font-semibold">Cargando tus postulaciones...</div>
-      </div>
-    );
-  }
+    fetchAplicaciones();
+  }, [navigate, fetchAplicaciones]);
+
+  const conteos = useMemo(
+    () =>
+      RESUMEN.map(({ estado: e, label }) => ({
+        label,
+        total: aplicaciones.filter((a) => a.estado === e).length,
+      })),
+    [aplicaciones]
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-talenthub-gray mb-2">
-            Mis Aplicaciones
+    <div className="min-h-screen mesh-page">
+      {/* ── Banda oscura ── */}
+      <header className="relative isolate mt-[calc(var(--nav-flow)*-1)] overflow-hidden bg-night pb-32 pt-[140px] text-ink-d">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-52 left-1/2 -z-10 h-[560px] w-[1000px] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(255,255,255,0.15),transparent_74%)] blur-[6px]"
+        />
+        <div className="relative mx-auto max-w-page px-6 md:px-7">
+          <h1 className="font-heading text-[clamp(2rem,4.4vw,3rem)] font-mid leading-none tracking-[-0.035em]">
+            Mis postulaciones
           </h1>
-          <p className="text-gray-600 text-lg font-medium">{aplicaciones.length} aplicaciones realizadas</p>
+          <p className="tabular mt-3 text-sub text-ink-2d">
+            {estado === 'listo'
+              ? aplicaciones.length === 1
+                ? '1 postulación enviada'
+                : `${aplicaciones.length} postulaciones enviadas`
+              : 'Cargando tu historial…'}
+          </p>
         </div>
+      </header>
 
-        <div className="space-y-4">
-          {aplicaciones.map((aplicacion) => (
-            <div key={aplicacion.id} className="bg-white rounded-lg shadow-md p-6 border-l-4 border-talenthub-blue">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-talenthub-gray mb-2">
-                    {aplicacion.vacante_titulo}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-4 font-medium">
-                    Aplicado el {new Date(aplicacion.fecha_aplicacion).toLocaleDateString('es-MX', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                  <span className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${getEstadoColor(aplicacion.estado)}`}>
-                    {getEstadoTexto(aplicacion.estado)}
-                  </span>
-                </div>
-                <Link
-                  to={`/vacantes/${aplicacion.vacante}`}
-                  className="bg-talenthub-blue text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
-                >
-                  Ver Detalles
-                </Link>
+      <div className="mx-auto max-w-page px-6 pb-20 md:px-7">
+        {/* ── Resumen en glass, a caballo entre la banda y el cuerpo.
+             El panel existe porque responde la pregunta real: ¿en qué voy? ── */}
+        {estado === 'listo' && aplicaciones.length > 0 && (
+          <div className="glass-panel glass-panel-overlap-sm edge-l mb-8 grid grid-cols-2 gap-px overflow-hidden sm:grid-cols-4">
+            {conteos.map(({ label, total }) => (
+              <div key={label} className="px-6 py-7">
+                <p className="tabular text-[1.75rem] font-mid leading-none tracking-[-0.03em] text-ink">
+                  {total}
+                </p>
+                <p className="mt-2 text-[0.8125rem] text-muted">{label}</p>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {aplicaciones.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center border-t-4 border-talenthub-blue">
-            <h3 className="text-3xl font-bold text-gray-700 mb-4">No tienes aplicaciones aún</h3>
-            <p className="text-gray-500 mb-8 text-lg">Explora las vacantes disponibles y aplica a las que más te interesen para impulsar tu carrera.</p>
-            <Link
-              to="/vacantes"
-              className="inline-block bg-talenthub-blue text-white px-10 py-4 rounded-lg font-bold text-lg hover:bg-blue-700 transition shadow-lg"
-            >
-              Explorar Vacantes
-            </Link>
+            ))}
           </div>
         )}
+
+        <div className={estado === 'listo' && aplicaciones.length > 0 ? '' : 'relative z-10 -mt-24'}>
+          {estado === 'cargando' && <SkeletonList count={3} />}
+
+          {estado === 'error' && (
+            <EmptyState
+              title="No pudimos cargar tus postulaciones"
+              description="El servidor no respondió. Puede ser una caída momentánea o tu conexión."
+              action={
+                <Button variant="ghost" onClick={fetchAplicaciones}>
+                  <RotateCcw size={14} strokeWidth={1.8} />
+                  Reintentar
+                </Button>
+              }
+            />
+          )}
+
+          {estado === 'listo' && aplicaciones.length === 0 && (
+            <EmptyState
+              title="Todavía no te has postulado"
+              description="Explora las vacantes abiertas y postúlate a las que encajen con tu perfil."
+              action={
+                <Link to="/vacantes">
+                  <Button variant="accent">
+                    <ArrowRight size={15} strokeWidth={1.8} />
+                    Explorar vacantes
+                  </Button>
+                </Link>
+              }
+            />
+          )}
+
+          {estado === 'listo' && aplicaciones.length > 0 && (
+            <motion.ul
+              variants={stagger(0.06)}
+              initial="hidden"
+              animate="show"
+              className="flex list-none flex-col gap-3.5 p-0"
+            >
+              {aplicaciones.map((aplicacion) => (
+                <motion.li key={aplicacion.id} variants={rise}>
+                  <Card as="article" glass interactive>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h2 className="text-[1.3125rem] font-demi tracking-[-0.012em] text-ink">
+                          {aplicacion.vacante_titulo}
+                        </h2>
+                        <p className="tabular mt-1.5 text-[0.875rem] text-muted">
+                          Enviada el{' '}
+                          {new Date(aplicacion.fecha_aplicacion).toLocaleDateString('es-MX', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <Link to={`/vacantes/${aplicacion.vacante}`}>
+                        <Button variant="ghost" size="sm">
+                          <ExternalLink size={14} strokeWidth={1.8} />
+                          Ver vacante
+                        </Button>
+                      </Link>
+                    </div>
+
+                    {/* El track dice en qué punto del proceso va, no solo la etiqueta */}
+                    <div className="mt-5 border-t border-hairline pt-5">
+                      <ProcessTrack estado={aplicacion.estado} />
+                    </div>
+                  </Card>
+                </motion.li>
+              ))}
+            </motion.ul>
+          )}
+        </div>
       </div>
     </div>
   );
